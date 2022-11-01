@@ -14,17 +14,22 @@ Here I also introduce the concept of “futures”—objects representing the as
     这里我也会介绍“futures”的概念——表示一个动作异步执行的对象。这个强大的想法是不仅是concurrent.futures，也是18章将会介绍的asyncio包的基础。
 
 We’ll start with a motivating example.  
-    我们来用一个令人激动的例子开始本章内容。
+    我们来用一个激动人心的例子开始本章内容。
 
 ## Example: Web Downloads in Three Styles
+## 示例： 三种风格的Web下载
 
-To handle network I/O efficiently, you need concurrency, as it involves high latency—so instead of wasting CPU cycles waiting, it’s better to do something else until a response comes back from the network.
+To handle network I/O efficiently, you need concurrency, as it involves high latency—so instead of wasting CPU cycles waiting, it’s better to do something else until a response comes back from the network.  
+    为了高效地处理网络I/O，你需要并发，因为它涉及高延迟——所以与其将CPU循环等待的时间浪费掉，不如在网络的响应回来之前来做一些其他的事。
 
-To make this last point with code, I wrote three simple programs to download images of 20 country flags from the Web. The first one, flags.py, runs sequentially: it only requests the next image when the previous one is downloaded and saved to disk. The other two scripts make concurrent downloads: they request all images practically at the same time, and save the files as they arrive. The flags_threadpool.py script uses the concurrent.futures package, while flags_asyncio.py uses asyncio.
+To make this last point with code, I wrote three simple programs to download images of 20 country flags from the Web. The first one, flags.py, runs sequentially: it only requests the next image when the previous one is downloaded and saved to disk. The other two scripts make concurrent downloads: they request all images practically at the same time, and save the files as they arrive. The flags_threadpool.py script uses the concurrent.futures package, while flags_asyncio.py uses asyncio.  
+    为了在代码中实现上述的功能，我写了三个简单的程序，用来从网页下载20个国家国旗的图片。第一个flags.py，有序运行：仅仅是当上一张图下载完成并存入硬盘后，开始请求下一张图片。另外两种脚本做到了并发下载：他们几乎同时请求所有图片，接收后保存。脚本flags_threadpool.py使用了concurrent.futures包，而flags_asyncio.py使用了asyncio。
 
-Example 17-1 shows the result of running the three scripts, three times each. I also posted a 73s video on YouTube so you can watch them running while an OS X Finder window displays the flags as they are saved. The scripts are downloading images from flupy.org, which is behind a CDN, so you may see slower results in the first runs. The results in Example 17-1 were obtained after several runs, so the CDN cache was warm.
+Example 17-1 shows the result of running the three scripts, three times each. I also posted a 73s video on YouTube so you can watch them running while an OS X Finder window displays the flags as they are saved. The scripts are downloading images from flupy.org, which is behind a CDN, so you may see slower results in the first runs. The results in Example 17-1 were obtained after several runs, so the CDN cache was warm.  
+    示例17-1展示这三种脚本的运行结果，每一种运行三次。我也在YouTube上传了一个73秒的视频，所以你可以在OS X Finder窗口观看他们的运行情况。脚本是从flupy.org中下载图片，他基于CDN，所以在首次运行时你可能要晚一些才能看到结果。示例17-1的结果是经过多次运行得到的，所以CDN缓存是热乎的。（？）
 
-Example 17-1. Three typical runs of the scripts flags.py, flags_threadpool.py, and flags_asyncio.py
+Example 17-1. Three typical runs of the scripts flags.py, flags_threadpool.py, and flags_asyncio.py  
+    示例17-1、三种典型的运行：flags.py, flags_threadpool.py，flags_asyncio.py
 
 ```python
 $ python3 flags.py
@@ -57,17 +62,25 @@ RU IN ID DE BR VN PK MX US IR ET EG NG BD FR CN JP PH CD TR  # 5
 
 ```
 
-1. The output for each run starts with the country codes of the flags as they are downloaded, and ends with a message stating the elapsed time.
-2. It took flags.py an average 7.18s to download 20 images.
-3. The average for flags_threadpool.py was 1.40s.
-4. For flags_asyncio.py, 1.35 was the average time.
-5. Note the order of the country codes: the downloads happened in a different order every time with the concurrent scripts.
+1. The output for each run starts with the country codes of the flags as they are downloaded, and ends with a message stating the elapsed time.  
+    每次运行的输出都以下载的国旗的国家代码为开始，并以为经历的时间为结束。
+2. It took flags.py an average 7.18s to download 20 images.  
+    flags.py下载20张图片平均花费7.18秒。
+3. The average for flags_threadpool.py was 1.40s.  
+    flags_threadpool.py平均时间为1.40秒。
+4. For flags_asyncio.py, 1.35 was the average time.  
+    对flags_asyncio.py来说，平均时间为1.35。
+5. Note the order of the country codes: the downloads happened in a different order every time with the concurrent scripts.  
+    注意国家代码的顺序：在并发脚本中的每次下载为不同顺序。
 
-The difference in performance between the concurrent scripts is not significant, but they are both more than five times faster than the sequential script—and this is just for a fairly small task. If you scale the task to hundreds of downloads, the concurrent scripts can outpace the sequential one by a factor or 20 or more.
+The difference in performance between the concurrent scripts is not significant, but they are both more than five times faster than the sequential script—and this is just for a fairly small task. If you scale the task to hundreds of downloads, the concurrent scripts can outpace the sequential one by a factor or 20 or more.  
+    并发脚本间的性能差异并不明显，但他们都要比顺序脚本要快5秒——并且这只是一个相当小的任务。如果你将该任务分配至梳百词的下载，那么并发脚本的速度可以超过顺序脚本的1/20甚至更多。
 
-    While testing concurrent HTTP clients on the public Web you may inadvertently launch a denial-of-service (DoS) attack, or be suspected of doing so. In the case of Example 17-1, it’s OK to do it because those scripts are hardcoded to make only 20 requests. For testing nontrivial HTTP clients, you should set up your own test server. The 17-futures/countries/README.rst file in the Fluent Python code GitHub repository has instructions for setting a local Nginx server.
+    While testing concurrent HTTP clients on the public Web you may inadvertently launch a denial-of-service (DoS) attack, or be suspected of doing so. In the case of Example 17-1, it’s OK to do it because those scripts are hardcoded to make only 20 requests. For testing nontrivial HTTP clients, you should set up your own test server. The 17-futures/countries/README.rst file in the Fluent Python code GitHub repository has instructions for setting a local Nginx server.  
+    当在公共Web上测试并发HTTP客户端时，你可能会无意间发起一个拒绝服务（denial-of-service, DoS）攻击，或者被怀疑做了这种事。示例17-1可行是因为那些脚本时硬编码，仅仅发出20次请求。为了测试不重要的HTTP客户端，你应该配置你自己的服务。在Fluent Python代码GitHub库中的17-futures/countries/README.rst文件介绍了有关配置本地Nginx服务的内容。
 
-Now let’s study the implementations of two of the scripts tested in Example 17-1: flags.py and flags_threadpool.py. I will leave the third script, flags_asyncio.py, for Chapter 18, but I wanted to demonstrate all three together to make a point: regardless of the concurrency strategy you use—threads or asyncio—you’ll see vastly improved throughput over sequential code in I/O-bound applications, if you code it properly.
+Now let’s study the implementations of two of the scripts tested in Example 17-1: flags.py and flags_threadpool.py. I will leave the third script, flags_asyncio.py, for Chapter 18, but I wanted to demonstrate all three together to make a point: regardless of the concurrency strategy you use—threads or asyncio—you’ll see vastly improved throughput over sequential code in I/O-bound applications, if you code it properly.  
+    现在我们开始学习17-1的两个脚本（flags.py和flags_threadpool.py）的实现。为了18章我先不介绍第三个脚本flags_asyncio.py，但我想要一起演示所有三种脚本 是为了说明：不管你是用的并发策略——线程或asyncio——只要你编写得合理，你将会看到在绑定IO的应用上，吞吐量相比于顺序代码有着非常大的提高。
 
 On to the code.
 
