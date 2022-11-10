@@ -82,14 +82,21 @@ The difference in performance between the concurrent scripts is not significant,
 Now let’s study the implementations of two of the scripts tested in Example 17-1: flags.py and flags_threadpool.py. I will leave the third script, flags_asyncio.py, for Chapter 18, but I wanted to demonstrate all three together to make a point: regardless of the concurrency strategy you use—threads or asyncio—you’ll see vastly improved throughput over sequential code in I/O-bound applications, if you code it properly.  
     现在我们开始学习17-1的两个脚本（flags.py和flags_threadpool.py）的实现。为了18章我先不介绍第三个脚本flags_asyncio.py，但我想要一起演示所有三种脚本 是为了说明：不管你是用的并发策略——线程或asyncio——只要你编写得合理，你将会看到在绑定IO的应用上，吞吐量相比于顺序代码有着非常大的提高。
 
-On to the code.
+On to the code.  
+    接下来是代码。
 
 ## A Sequential Download Script
-Example 17-2 is not very interesting, but we’ll reuse most of its code and settings to implement the concurrent scripts, so it deserves some attention.
+## 顺序下载的脚本
+Example 17-2 is not very interesting, but we’ll reuse most of its code and settings to implement the concurrent scripts, so it deserves some attention.  
+   示例17-2并没有很有趣，但是我们会将这版代码中的大部分进行复用，并设置为来执行并发脚本，所以这值得关注
+。
 
     For clarity, there is no error handling in Example 17-2. We will deal with exceptions later, but here we want to focus on the basic structure of the code, to make it easier to contrast this script with the concurrent ones.
+    为了清楚起见，示例17-2中没有处理错误。我们将在之后处理异常，单在这里我们想要聚焦于代码的基础结构，来更加方便对比此脚本与并发脚本。
 
-Example 17-2. flags.py: sequential download script; some functions will be reused by the other scripts
+
+Example 17-2. flags.py: sequential download script; some functions will be reused by the other scripts  
+    示例17-2 flags.py：顺序下载脚本；其中一些方法会被其他脚本复用。
 ```python
 import os
 import time
@@ -144,22 +151,34 @@ if __name__ == '__main__':
 
 ```
 
-1. Import the requests library; it’s not part of the standard library, so by convention we import it after the standard library modules os, time, and sys, and separate it from them with a blank line.
-2. List of the ISO 3166 country codes for the 20 most populous countries in order of decreasing population.
-3. The website with the flag images.[2]
-4. Local directory where the images are saved.
-5. Simply save the img (a byte sequence) to filename in the DEST_DIR.
-6. Given a country code, build the URL and download the image, returning the binary contents of the response.
-7. Display a string and flush sys.stdout so we can see progress in a one-line display; this is needed because Python normally waits for a line break to flush the stdout buffer. 
-8. download_many is the key function to compare with the concurrent implementations.
-9. Loop over the list of country codes in alphabetical order, to make it clear that the ordering is preserved in the output; return the number of country codes downloaded.
-10. main records and reports the elapsed time after running download_many.
+1. Import the requests library; it’s not part of the standard library, so by convention we import it after the standard library modules os, time, and sys, and separate it from them with a blank line.  
+    引入request库；这不是标准库的一部分，所以按照惯例我们在标准库模块os，time和sys之后引入它，并且用一个空行来分隔他们。
+2. List of the ISO 3166 country codes for the 20 most populous countries in order of decreasing population.  
+    20个人口最多的国家的ISO 3166国家代码，以人口数递减排序来列出的清单。
+3. The website with the flag images.[2]  
+    国旗图像的网站。[2]
+4. Local directory where the images are saved.  
+    保存这些图片的本地目录。
+5. Simply save the img (a byte sequence) to filename in the DEST_DIR.  
+    只需将img（一个字节序列）保存到DEST_DIR中的文件名中。
+6. Given a country code, build the URL and download the image, returning the binary contents of the response.  
+    传入国家代码，建立URL并下载此图片，返回此请求响应的二进制内容。
+7. Display a string and flush sys.stdout so we can see progress in a one-line display; this is needed because Python normally waits for a line break to flush the stdout buffer.   
+    显示该字符串并刷新sys.stdout，所以我们可以在一行显示中看到进度；这是必要的，因为Python通常会等待一行返回来刷新stdout缓存。
+8. download_many is the key function to compare with the concurrent implementations.  
+    download_many是用来对比并发执行情况的关键函数。
+9. Loop over the list of country codes in alphabetical order, to make it clear that the ordering is preserved in the output; return the number of country codes downloaded.  
+    遍历以字母顺序排序的国家代码列表，来使输出以顺序保存，便于观察；返回已下载的国家代码的数量。
+10. main records and reports the elapsed time after running download_many.  
+    main函数记录并报告了在运行download_many之后经历的时间。
 11. main must be called with the function that will make the downloads; we pass the download_many function as an argument so that main can be used as a library function with other implementations of download_many in the next examples.  
+    main函数必须被那些进行下载的函数调用；我们将download_many函数作为一个参数传入，以便main函数可以被用于一个库方法，可以被之后的示例中其他download_many的实现进行调用。
 
-[2]The images are originally from the CIA World Factbook, a public-domain, U.S. government publication. I copied them to my site to avoid the risk of launching a DOS attack on CIA.gov.
-
-
+[2]The images are originally from the CIA World Factbook, a public-domain, U.S. government publication. I copied them to my site to avoid the risk of launching a DOS attack on CIA.gov.  
+    [2]这些图片根源出处是CIA World Facbook，一个公共域，美国政府出版物。我把它们拷贝至我的网站来避免对CIA.gov进行DOS攻击。
+*
     The requests library by Kenneth Reitz is available on PyPI and is more powerful and easier to use than the urllib.request module from the Python 3 standard library. In fact, requests is considered a model Pythonic API. It is also compatible with Python 2.6 and up, while the urllib2 from Python 2 was moved and renamed in Python 3, so it’s more convenient to use requests regardless of the Python version you’re targeting.*
+    Kenneth Reitz的requests库可以在PyPI上使用，同时相比于Python3标准库的urllib.request，它会更强大与简单。事实上，requests被认为是一个Pythonic的API。它也兼容Python2.6或更高，而Python2的urllib2在Python3中被修改并重命名，所以无论你的Python版本是什么，使用requests都会更方便。
 
 There’s really nothing new to flags.py. It serves as a baseline for comparing the other scripts and I used it as a library to avoid redundant code when implementing them. Now let’s see a reimplementation using concurrent.futures.
 
