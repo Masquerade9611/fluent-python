@@ -180,15 +180,20 @@ if __name__ == '__main__':
     The requests library by Kenneth Reitz is available on PyPI and is more powerful and easier to use than the urllib.request module from the Python 3 standard library. In fact, requests is considered a model Pythonic API. It is also compatible with Python 2.6 and up, while the urllib2 from Python 2 was moved and renamed in Python 3, so it’s more convenient to use requests regardless of the Python version you’re targeting.*
     Kenneth Reitz的requests库可以在PyPI上使用，同时相比于Python3标准库的urllib.request，它会更强大与简单。事实上，requests被认为是一个Pythonic的API。它也兼容Python2.6或更高，而Python2的urllib2在Python3中被修改并重命名，所以无论你的Python版本是什么，使用requests都会更方便。
 
-There’s really nothing new to flags.py. It serves as a baseline for comparing the other scripts and I used it as a library to avoid redundant code when implementing them. Now let’s see a reimplementation using concurrent.futures.
+There’s really nothing new to flags.py. It serves as a baseline for comparing the other scripts and I used it as a library to avoid redundant code when implementing them. Now let’s see a reimplementation using concurrent.futures.  
+    flags.py其实没有什么新鲜的。它作为一个用来和其他脚本对比的基准，我将它作为一个库来避免完成他们时的重复代码。现在我们来看看使用concurrent.futures的重新实现。
 
 ## Downloading with concurrent.futures
+## 使用concurrent.futures下载
 
-The main features of the concurrent.futures package are the ThreadPoolExecutor and ProcessPoolExecutor classes, which implement an interface that allows you to submit callables for execution in different threads or processes, respectively. The classes manage an internal pool of worker threads or processes, and a queue of tasks to be executed. But the interface is very high level and we don’t need to know about any of those details for a simple use case like our flag downloads.
+The main features of the concurrent.futures package are the ThreadPoolExecutor and ProcessPoolExecutor classes, which implement an interface that allows you to submit callables for execution in different threads or processes, respectively. The classes manage an internal pool of worker threads or processes, and a queue of tasks to be executed. But the interface is very high level and we don’t need to know about any of those details for a simple use case like our flag downloads.  
+    concurrent.futures包的主要功能特点是ThreadPoolExecutor和ProcessPoolExecutor类，这些类完成了一种接口，来支持你分别在不同线程或进程中提交可执行对象的执行。这些类管理工作线程或进程的内部池，以及要执行的一个队列的任务。但这个接口很高级，对于像我们的flag下载这种简单用例不需要知道它的所有细节。
 
-Example 17-3 shows the easiest way to implement the downloads concurrently, using the ThreadPoolExecutor.map method.
+Example 17-3 shows the easiest way to implement the downloads concurrently, using the ThreadPoolExecutor.map method.  
+    示例17-3展示了并发下载实现的最简单方式，通过使用ThreadPoolExecutor.map方法。
 
-Example 17-3. flags_threadpool.py: threaded download script using futures.ThreadPoolExecutor
+Example 17-3. flags_threadpool.py: threaded download script using futures.ThreadPoolExecutor  
+    示例17-3. flags_threadpool.py：使用futures.ThreadPoolExecutor的线程下载脚本
 ```python
 from concurrent import futures
 
@@ -216,16 +221,25 @@ if __name__ == '__main__':
     main(download_many)  # 8
 
 ```
-1. Reuse some functions from the flags module (Example 17-2).
-2. Maximum number of threads to be used in the ThreadPoolExecutor.
-3. Function to download a single image; this is what each thread will execute.
-4. Set the number of worker threads: use the smaller number between the maximum we want to allow (MAX_WORKERS) and the actual items to be processed, so no unnecessary threads are created.
-5. Instantiate the ThreadPoolExecutor with that number of worker threads; the executor.__exit__ method will call executor.shutdown(wait=True), which will block until all threads are done.
-6. The map method is similar to the map built-in, except that the download_one function will be called concurrently from multiple threads; it returns a generator that can be iterated over to retrieve the value returned by each function.
-7. Return the number of results obtained; if any of the threaded calls raised an exception, that exception would be raised here as the implicit next() call tried to retrieve the corresponding return value from the iterator.
-8. Call the main function from the flags module, passing the enhanced version of download_many.
+1. Reuse some functions from the flags module (Example 17-2).  
+    对示例17-2 flags模块一些方法的复用。
+2. Maximum number of threads to be used in the ThreadPoolExecutor.  
+    在ThreadPoolExecutor用到的最大线程数。
+3. Function to download a single image; this is what each thread will execute.  
+    下载一张单独图像的函数；这是每个线程将执行的内容。
+4. Set the number of worker threads: use the smaller number between the maximum we want to allow (MAX_WORKERS) and the actual items to be processed, so no unnecessary threads are created.  
+    设置工作线程的数量：在我们想要允许的最大值（MAX_WORKERS）和实际需要处理的项目数这二者间选择较小的一方，来避免创建不必要的线程。
+5. Instantiate the ThreadPoolExecutor with that number of worker threads; the executor.__exit__ method will call executor.shutdown(wait=True), which will block until all threads are done.  
+    使用工作线程的数量实例化ThreadPoolExecutor；executor.__exit__方法将会调用executor.shutdown(wait=True)，效果是在所有线程都执行结束前会阻塞住。
+6. The map method is similar to the map built-in, except that the download_one function will be called concurrently from multiple threads; it returns a generator that can be iterated over to retrieve the value returned by each function.  
+    map方法类似于内建的map，不同的是download_one函数将会被多个线程并发地调用；它会返回一个生成器，遍历后来检测每个方法的返回值。
+7. Return the number of results obtained; if any of the threaded calls raised an exception, that exception would be raised here as the implicit next() call tried to retrieve the corresponding return value from the iterator.  
+    返回获取到的结果数量；如果任意线程的调用抛出了异常，那么当隐式的next()调用尝试从迭代器中检索相应的返回值时，在这里会引发异常。
+8. Call the main function from the flags module, passing the enhanced version of download_many.  
+    调用flags模块的main函数，传递加强版的download_many。
 
-Note that the download_one function from Example 17-3 is essentially the body of the for loop in the download_many function from Example 17-2. This is a common refactoring when writing concurrent code: turning the body of a sequential for loop into a function to be called concurrently.
+Note that the download_one function from Example 17-3 is essentially the body of the for loop in the download_many function from Example 17-2. This is a common refactoring when writing concurrent code: turning the body of a sequential for loop into a function to be called concurrently.  
+    <!-- 注意示例17-3的download_one函数本质上是 -->
 
 The library is called concurrency.futures yet there are no futures to be seen in Example 17-3, so you may be wondering where they are. The next section explains.
 
