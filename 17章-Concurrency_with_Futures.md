@@ -1,5 +1,5 @@
 # Chapter 17 Concurrcy with Futures
-# 第17章 
+# 第17章 使用future处理并发
 
 *The people bashing threads are typically system programmers which have in mind use cases that the typical application programmer will never encounter in her life. […] In 99% of the use cases an application programmer is likely to run into, the simple pattern of spawning a bunch of independent threads and collecting the results in a queue is everything one needs to know.   — Michele Simionato Python deep thinker[1]*  
 *抨击线程的人群一般来讲是系统程序员，他们思考的用例是通常的应用程序员一生都无法遇到的。... 在应用程序员很可能碰到的99%的用例中，“生成一堆独立线程并在队列中收集结果”这种简单的模式是他们需要知道的一切。    ——Michele Simonato Python思想家[1]*  
@@ -16,8 +16,8 @@ Here I also introduce the concept of “futures”—objects representing the as
 We’ll start with a motivating example.  
     我们来用一个激动人心的例子开始本章内容。
 
-## Example: Web Downloads in Three Styles
-## 示例： 三种风格的Web下载
+## 17.1 Example: Web Downloads in Three Styles
+## 17.1 示例： 三种风格的Web下载
 
 To handle network I/O efficiently, you need concurrency, as it involves high latency—so instead of wasting CPU cycles waiting, it’s better to do something else until a response comes back from the network.  
     为了高效地处理网络I/O，你需要并发，因为它涉及高延迟——所以与其将CPU循环等待的时间浪费掉，不如在网络的响应回来之前来做一些其他的事。
@@ -85,8 +85,8 @@ Now let’s study the implementations of two of the scripts tested in Example 17
 On to the code.  
     接下来是代码。
 
-## A Sequential Download Script
-## 顺序下载的脚本
+### 17.1.1 A Sequential Download Script
+## 17.1.1 顺序下载的脚本
 Example 17-2 is not very interesting, but we’ll reuse most of its code and settings to implement the concurrent scripts, so it deserves some attention.  
    示例17-2并没有很有趣，但是我们会将这版代码中的大部分进行复用，并设置为来执行并发脚本，所以这值得关注
 。
@@ -183,8 +183,8 @@ if __name__ == '__main__':
 There’s really nothing new to flags.py. It serves as a baseline for comparing the other scripts and I used it as a library to avoid redundant code when implementing them. Now let’s see a reimplementation using concurrent.futures.  
     flags.py其实没有什么新鲜的。它作为一个用来和其他脚本对比的基准，我将它作为一个库来避免完成他们时的重复代码。现在我们来看看使用concurrent.futures的重新实现。
 
-## Downloading with concurrent.futures
-## 使用concurrent.futures下载
+### 17.1.2 Downloading with concurrent.futures
+### 17.1.2 使用concurrent.futures下载
 
 The main features of the concurrent.futures package are the ThreadPoolExecutor and ProcessPoolExecutor classes, which implement an interface that allows you to submit callables for execution in different threads or processes, respectively. The classes manage an internal pool of worker threads or processes, and a queue of tasks to be executed. But the interface is very high level and we don’t need to know about any of those details for a simple use case like our flag downloads.  
     concurrent.futures包的主要功能特点是ThreadPoolExecutor和ProcessPoolExecutor类，这些类完成了一种接口，来支持你分别在不同线程或进程中提交可执行对象的执行。这些类管理工作线程或进程的内部池，以及要执行的一个队列的任务。但这个接口很高级，对于像我们的flag下载这种简单用例不需要知道它的所有细节。
@@ -239,8 +239,131 @@ if __name__ == '__main__':
     调用flags模块的main函数，传递加强版的download_many。
 
 Note that the download_one function from Example 17-3 is essentially the body of the for loop in the download_many function from Example 17-2. This is a common refactoring when writing concurrent code: turning the body of a sequential for loop into a function to be called concurrently.  
-    <!-- 注意示例17-3的download_one函数本质上是 -->
+    注意，示例17-3的download_one函数本质上是17-2中download_many函数的for循环体。写并发代码时经常这样重构：把依序执行的for循环体改成一个函数，以便进行并发调用。
 
-The library is called concurrency.futures yet there are no futures to be seen in Example 17-3, so you may be wondering where they are. The next section explains.
+The library is called concurrency.futures yet there are no futures to be seen in Example 17-3, so you may be wondering where they are. The next section explains.  
+    库名叫做concurrency.futures，然而示例17-3中没有交到futures，所以你可能想要知道他们在哪。下一节会进行解释。
+
+### 17.1.3 Where Are the Futures?
+### 17.1.3 Futures在哪里？
+
+Futures are essential components in the internals of concurrent.futures and of asyncio, but as users of these libraries we sometimes don’t see them. Example 17-3 leverages futures behind the scenes, but the code I wrote does not touch them directly. This section is an overview of futures, with an example that shows them in action.  
+    Futures是concurrent.futures和asyncio内部的重要组成部分，但作为库的使用者来讲，我们有些时候不能直观地看到他们。示例17-3在背后用到的futures，但是编写的代码并没有直接接触到他们。这一节是futures的概述，会用一个例子来介绍。
+
+As of Python 3.4, there are two classes named Future in the standard library: concurrent.futures.Future and asyncio.Future. They serve the same purpose: an instance of either Future class represents a deferred computation that may or may not have completed. This is similar to the Deferred class in Twisted, the Future class in Tornado, and Promise objects in various JavaScript libraries.  
+    从Python 3.4起，标准库中被命名为Future的类有两个：concurrent.futures.Future和asyncio.Future。他们的作用相同：任一个Future类的实例代表着延迟的计算——计算可能已经完成了，也可能没有完成。这有许多类似的实现，如Twisted中的Deferred类，Tornado中的Future类和各种JavaScript库中的Promise对象。
+
+Futures encapsulate pending operations so that they can be put in queues, their state of completion can be queried, and their results (or exceptions) can be retrieved when available.  
+    Futrues封装了待完成的操作，这些操作被放置于队列中，其完成状态可以被查询，并且他们的结果（或异常）可以被获取到。
+
+An important thing to know about futures in general is that you and I should not create them: they are meant to be instantiated exclusively by the concurrency framework, be it concurrent.futures or asyncio. It’s easy to understand why: a Future represents something that will eventually happen, and the only way to be sure that something will happen is to schedule its execution. Therefore, concurrent.futures.Future instances are created only as the result of scheduling something for execution with a concurrent.futures.Executor subclass. For example, the Executor.submit() method takes a callable, schedules it to run, and returns a future.  
+    关于futures通常我们需要知道的是 你我不应该去创建他们：他们应该仅仅由并发框架来进行实例化，像concurrent.futures或asyncio。这很容易理解：Furure代表着一些终究要发生的事情，而且确定它会发生的唯一方式就是安排它的执行。因此，concurrent.futures.Future的实例仅被规划执行事件（通过concurrent.futures.Executor子类）的结果所创建。举个例子，Executor.submit()方法需要一个调用对象，规划它去运行时期，最后返回一个futures。
+
+Client code is not supposed to change the state of a future: the concurrency framework changes the state of a future when the computation it represents is done, and we can’t control when that happens.  
+    客户端代码不应该改变future的状态：当它表示的计算完成时并发框架会改变future的状态，而我们无法控制计算何时结束。
+
+Both types of Future have a .done() method that is nonblocking and returns a Boolean that tells you whether the callable linked to that future has executed or not. Instead of asking whether a future is done, client code usually asks to be notified. That’s why both Future classes have an .add_done_callback() method: you give it a callable, and the callable will be invoked with the future as the single argument when the future is done.  
+    Future的所有类型都有.done()方法，该方法不阻塞且返回一个布尔值来通知你future连接的回调对象是否已执行完成。客户端代码通常不会询问future是否运行结束，而是会等待通知。因此，这两个Future类都有.add_done_callback()方法：你给他一个可调用对象，future运行结束后会调用这个可调用对象。
+
+There is also a .result() method, which works the same in both classes when the future is done: it returns the result of the callable, or re-raises whatever exception might have been thrown when the callable was executed. However, when the future is not done, the behavior of the result method is very different between the two flavors of Future. In a concurrency.futures.Future instance, invoking f.result() will block the caller’s thread until the result is ready. An optional timeout argument can be passed, and if the future is not done in the specified time, a TimeoutError exception is raised. In “asyncio.Future: Nonblocking by Design” on page 545, we’ll see that the asyncio.Future.result method does not support timeout, and the preferred way to get the result of futures in that library is to use yield from—which doesn’t work with concurrency.futures.Future instances.  
+    此外还有.result()方法，当future完成时，该方法在这两个类中作用相同：返回调用对象的结果或重新引发调用对象执行时抛出的异常。但是，当future没有结束时，result方法的行为在上述两类中不同。在concurrency.futures.Future实例中，调用f.result()会阻塞调用方的线程，直到有结果返回。可传入一个可选的timeout参数，如果future在指定时间内没有完成，就引发TimoutError异常。在“asyncio.Future：为非阻塞而设计”的545页中，我们将看到asyncio.Future.result方法不支持timeout，在那个库中获取future的结果更好方式是使用yield from——这对concurrency.futures.Future实例不支持。
+
+Several functions in both libraries return futures; others use them in their implementation in a way that is transparent to the user. An example of the latter is the Executor.map we saw in Example 17-3: it returns an iterator in which __next__ calls the result method of each future, so what we get are the results of the futures, and not the futures themselves.  
+    两个库中的几个方法都返回future；而其他函数则使用future，以用户易于理解的方式来实现自己。我们在示例17-3看到的Executor.map属于后者：他返回一个迭代器，其__next__调用各个future的result方法，所以我们获取到的是future的结果，而不是future他们自身。
+
+To get a practical look at futures, we can rewrite Example 17-3 to use the concurrent.futures.as_completed function, which takes an iterable of futures and returns an iterator that yields futures as they are done.  
+    为了从实用角度理解future，我们可以重写示例17-3来使用concurrent.futures.as_completed 方法
+
+Using futures.as_completed requires changes to the download_many function only. The higher-level executor.map call is replaced by two for loops: one to create and schedule the futures, the other to retrieve their results. While we are at it, we’ll add a few print calls to display each future before and after it’s done. Example 17-4 shows the code for a new download_many function. The code for download_many grew from 5 to 17 lines, but now we get to inspect the mysterious futures. The remaining functions are the same as in Example 17-3.
+
+Example 17-4. flags_threadpool_ac.py: replacing executor.map with executor.submit and futures.as_completed in the download_many function
+
+```python
+def download_many(cc_list):
+    cc_list = cc_list[:5]  # 1
+    with futures.ThreadPoolExecutor(max_workers=3) as executor:  # 2
+        to_do = []
+        for cc in sorted(cc_list):  # 3
+            future = executor.submit(download_one, cc)  # 4
+            to_do.append(future)  # 5
+            msg = 'Scheduled for {}: {}'
+            print(msg.format(cc, future))  # 6
+
+        results = []
+        for future in futures.as_completed(to_do):  # 7
+            res = future.result()  # 8
+            msg = '{} result: {!r}'
+            print(msg.format(future, res))  # 9
+            results.append(res)
+
+    return len(results)
+```
+
+1. For this demonstration, use only the top five most populous countries.
+2. Hardcode max_workers to 3 so we can observe pending futures in the output.
+3. Iterate over country codes alphabetically, to make it clear that results arrive out of order.
+4. executor.submit schedules the callable to be executed, and returns a future representing this pending operation.
+5. Store each future so we can later retrieve them with as_completed.
+6. Display a message with the country code and the respective future.
+7. as_completed yields futures as they are completed.
+8. Get the result of this future.
+9. Display the future and its result.
+
+Note that the future.result() call will never block in this example because the future is coming out of as_completed. Example 17-5 shows the output of one run of Example 17-4.
+
+Example 17-5. Output of flags_threadpool_ac.py
+```python
+$ python3 flags_threadpool_ac.py
+Scheduled for BR: <Future at 0x100791518 state=running> 
+Scheduled for CN: <Future at 0x100791710 state=running>
+Scheduled for ID: <Future at 0x100791a90 state=running>
+Scheduled for IN: <Future at 0x101807080 state=pending> 
+Scheduled for US: <Future at 0x101807128 state=pending>
+CN <Future at 0x100791710 state=finished returned str> result: 'CN' 
+BR ID <Future at 0x100791518 state=finished returned str> result: 'BR' 
+<Future at 0x100791a90 state=finished returned str> result: 'ID'
+IN <Future at 0x101807080 state=finished returned str> result: 'IN'
+US <Future at 0x101807128 state=finished returned str> result: 'US'
+
+5 flags downloaded in 0.70s
+```
+
+1. The futures are scheduled in alphabetical order; the repr() of a future shows its state: the first three are running, because there are three worker threads.
+2. The last two futures are pending, waiting for worker threads.
+3. The first CN here is the output of download_one in a worker thread; the rest of the line is the output of download_many.
+4. Here two threads output codes before download_many in the main thread can display the result of the first thread.  
+`
+
+    If you run flags_threadpool_ac.py several times, you’ll see the order of the results varying. Increasing the max_workers argument to 5 will increase the variation in the order of the results. Decreasing it to 1 will make this code run sequentially, and the order of the results will always be the order of the submit calls.
+
+We saw two variants of the download script using concurrent.futures: Example 17-3 with ThreadPoolExecutor.map and Example 17-4 with futures.as_completed. If you are curious about the code for flags_asyncio.py, you may peek at Example 18-5 in Chapter 18.
+
+Strictly speaking, none of the concurrent scripts we tested so far can perform downloads in parallel. The concurrent.futures examples are limited by the GIL, and the flags_asyncio.py is single-threaded.
+
+At this point, you may have questions about the informal benchmarks we just did:
+- How can flags_threadpool.py perform 5× faster than flags.py if Python threads are limited by a Global Interpreter Lock (GIL) that only lets one thread run at any time?
+- How can flags_asyncio.py perform 5× faster than flags.py when both are single threaded?
+
+I will answer the second question in “Running Circling Around Blocking Calls” on page 552.
+
+Read on to understand why the GIL is nearly harmless with I/O-bound processing.
+
+
+## 17.2 Blocking I/O and the GIL
+
+The CPython interpreter is not thread-safe internally, so it has a Global Interpreter Lock (GIL), which allows only one thread at a time to execute Python bytecodes. That’s why a single Python process usually cannot use multiple CPU cores at the same time.[3]
+
+When we write Python code, we have no control over the GIL, but a built-in function or an extension written in C can release the GIL while running time-consuming tasks. In fact, a Python library coded in C can manage the GIL, launch its own OS threads, and take advantage of all available CPU cores. This complicates the code of the library considerably, and most library authors don’t do it.
+
+However, all standard library functions that perform blocking I/O release the GIL when waiting for a result from the OS. This means Python programs that are I/O bound can benefit from using threads at the Python level: while one Python thread is waiting for a response from the network, the blocked I/O function releases the GIL so another thread can run.
+
+That’s why David Beazley says: “Python threads are great at doing nothing.”[4]
+
+    Every blocking I/O function in the Python standard library releases the GIL, allowing other threads to run. The time.sleep() function also releases the GIL. Therefore, Python threads are perfectly usable in I/O-bound applications, despite the GIL.
+
+Now let’s take a brief look at a simple way to work around the GIL for CPU-bound jobs using concurrent.futures.
+
+
+## 17.3
 
 
