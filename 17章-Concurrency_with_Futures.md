@@ -272,11 +272,13 @@ Several functions in both libraries return futures; others use them in their imp
     两个库中的几个方法都返回future；而其他函数则使用future，以用户易于理解的方式来实现自己。我们在示例17-3看到的Executor.map属于后者：他返回一个迭代器，其__next__调用各个future的result方法，所以我们获取到的是future的结果，而不是future他们自身。
 
 To get a practical look at futures, we can rewrite Example 17-3 to use the concurrent.futures.as_completed function, which takes an iterable of futures and returns an iterator that yields futures as they are done.  
-    为了从实用角度理解future，我们可以重写示例17-3来使用concurrent.futures.as_completed 方法
+    为了从实用角度理解future，我们可以重写示例17-3来使用concurrent.futures.as_completed方法，传入一个包含future对象的可迭代对象，返回一个迭代器用来产出已经完成的future。
 
-Using futures.as_completed requires changes to the download_many function only. The higher-level executor.map call is replaced by two for loops: one to create and schedule the futures, the other to retrieve their results. While we are at it, we’ll add a few print calls to display each future before and after it’s done. Example 17-4 shows the code for a new download_many function. The code for download_many grew from 5 to 17 lines, but now we get to inspect the mysterious futures. The remaining functions are the same as in Example 17-3.
+Using futures.as_completed requires changes to the download_many function only. The higher-level executor.map call is replaced by two for loops: one to create and schedule the futures, the other to retrieve their results. While we are at it, we’ll add a few print calls to display each future before and after it’s done. Example 17-4 shows the code for a new download_many function. The code for download_many grew from 5 to 17 lines, but now we get to inspect the mysterious futures. The remaining functions are the same as in Example 17-3.  
+    使用futures.as_completed只需要修改download_many方法。更高级的executor.map调用被以下两个循环替代：一个用来创建并安排future，另一个来验证future的结果。当我们这样做时，将在每个future的完成前后加入print进行显示。示例17-4展示了新的download_many函数的代码。download_many代码行数从5增加到17，但是现在我们先去看看神秘的future。其余的函数和17-3中一样。
 
-Example 17-4. flags_threadpool_ac.py: replacing executor.map with executor.submit and futures.as_completed in the download_many function
+Example 17-4. flags_threadpool_ac.py: replacing executor.map with executor.submit and futures.as_completed in the download_many function  
+    示例17-4. flags_threadpool_ac.py：使用download_many函数中的executor.submit和futures.as_completst替换了executor.map
 
 ```python
 def download_many(cc_list):
@@ -300,27 +302,38 @@ def download_many(cc_list):
 ```
 
 1. For this demonstration, use only the top five most populous countries.
-2. Hardcode max_workers to 3 so we can observe pending futures in the output.
-3. Iterate over country codes alphabetically, to make it clear that results arrive out of order.
-4. executor.submit schedules the callable to be executed, and returns a future representing this pending operation.
-5. Store each future so we can later retrieve them with as_completed.
-6. Display a message with the country code and the respective future.
-7. as_completed yields futures as they are completed.
-8. Get the result of this future.
-9. Display the future and its result.
+    为了演示，仅使用了前五个人口最多的国家
+2. Hardcode max_workers to 3 so we can observe pending futures in the output.  
+    将max_worker固定为3，所以我们可以在输出中观察到pending的futures
+3. Iterate over country codes alphabetically, to make it clear that results arrive out of order.  
+    按字母顺序遍历国家代码，以明确结果为无序
+4. executor.submit schedules the callable to be executed, and returns a future representing this pending operation.  
+    executor.submit规划了被执行的待调用对象，并返回了表示该pending操作的future。
+5. Store each future so we can later retrieve them with as_completed.  
+    存储每一个future，所以我们可以在之后通过as_completed检查他们
+6. Display a message with the country code and the respective future.  
+    显示国家代码与各自future的信息
+7. as_completed yields futures as they are completed.  
+    as_completed产出已经完成的futures
+8. Get the result of this future.  
+    获取该future的结果
+9. Display the future and its result.  
+    显示该future与其结果
 
-Note that the future.result() call will never block in this example because the future is coming out of as_completed. Example 17-5 shows the output of one run of Example 17-4.
+Note that the future.result() call will never block in this example because the future is coming out of as_completed. Example 17-5 shows the output of one run of Example 17-4.  
+    注意，本示例中的future.result()的调用不会阻塞，因为future来自于as_completed。示例17-5展示了17-4的一次运行输出。
 
 Example 17-5. Output of flags_threadpool_ac.py
+    示例17-5. flags_threadpool_ac.py的输出
 ```python
 $ python3 flags_threadpool_ac.py
-Scheduled for BR: <Future at 0x100791518 state=running> 
+Scheduled for BR: <Future at 0x100791518 state=running>  # 1
 Scheduled for CN: <Future at 0x100791710 state=running>
 Scheduled for ID: <Future at 0x100791a90 state=running>
-Scheduled for IN: <Future at 0x101807080 state=pending> 
+Scheduled for IN: <Future at 0x101807080 state=pending>  # 2
 Scheduled for US: <Future at 0x101807128 state=pending>
-CN <Future at 0x100791710 state=finished returned str> result: 'CN' 
-BR ID <Future at 0x100791518 state=finished returned str> result: 'BR' 
+CN <Future at 0x100791710 state=finished returned str> result: 'CN'  # 3
+BR ID <Future at 0x100791518 state=finished returned str> result: 'BR'  # 4
 <Future at 0x100791a90 state=finished returned str> result: 'ID'
 IN <Future at 0x101807080 state=finished returned str> result: 'IN'
 US <Future at 0x101807128 state=finished returned str> result: 'US'
@@ -328,13 +341,18 @@ US <Future at 0x101807128 state=finished returned str> result: 'US'
 5 flags downloaded in 0.70s
 ```
 
-1. The futures are scheduled in alphabetical order; the repr() of a future shows its state: the first three are running, because there are three worker threads.
-2. The last two futures are pending, waiting for worker threads.
-3. The first CN here is the output of download_one in a worker thread; the rest of the line is the output of download_many.
+1. The futures are scheduled in alphabetical order; the repr() of a future shows its state: the first three are running, because there are three worker threads.  
+    这些future以字母顺序被进行规划；future的repr()展示了他的状态：前三个在运行，因为共有三个工作线程。
+2. The last two futures are pending, waiting for worker threads.  
+    后两个future正在pending，等待工作线程。
+3. The first CN here is the output of download_one in a worker thread; the rest of the line is the output of download_many.  
+    这里的第一个CN是工作线程中download_on的输出；本行剩余部分位download_many的输出。
 4. Here two threads output codes before download_many in the main thread can display the result of the first thread.  
+    这里的两个线程输出code
 `
 
     If you run flags_threadpool_ac.py several times, you’ll see the order of the results varying. Increasing the max_workers argument to 5 will increase the variation in the order of the results. Decreasing it to 1 will make this code run sequentially, and the order of the results will always be the order of the submit calls.
+    如果你多次运行flags_threadpool_ac.py，你将看到各不同顺序的结果。将max_workers数增加至5，将会让结果的顺序变化更大。而减少至1的话，将让该代码顺序执行，结果的顺序将保持与submin调用的顺序一致。
 
 We saw two variants of the download script using concurrent.futures: Example 17-3 with ThreadPoolExecutor.map and Example 17-4 with futures.as_completed. If you are curious about the code for flags_asyncio.py, you may peek at Example 18-5 in Chapter 18.
 
