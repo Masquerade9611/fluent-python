@@ -354,32 +354,47 @@ US <Future at 0x101807128 state=finished returned str> result: 'US'
     If you run flags_threadpool_ac.py several times, you’ll see the order of the results varying. Increasing the max_workers argument to 5 will increase the variation in the order of the results. Decreasing it to 1 will make this code run sequentially, and the order of the results will always be the order of the submit calls.
     如果你多次运行flags_threadpool_ac.py，你将看到各不同顺序的结果。将max_workers数增加至5，将会让结果的顺序变化更大。而减少至1的话，将让该代码顺序执行，结果的顺序将保持与submin调用的顺序一致。
 
-We saw two variants of the download script using concurrent.futures: Example 17-3 with ThreadPoolExecutor.map and Example 17-4 with futures.as_completed. If you are curious about the code for flags_asyncio.py, you may peek at Example 18-5 in Chapter 18.
+We saw two variants of the download script using concurrent.futures: Example 17-3 with ThreadPoolExecutor.map and Example 17-4 with futures.as_completed. If you are curious about the code for flags_asyncio.py, you may peek at Example 18-5 in Chapter 18.  
+    我们看到使用了concurrent.futures的下载脚本的两个变体：17-3用了ThreadPoolExecutor.map，17-4用了futures.as_completed。如果你对flags_asyncio.py的代码感兴趣，你可以参考18章的18-5。
 
-Strictly speaking, none of the concurrent scripts we tested so far can perform downloads in parallel. The concurrent.futures examples are limited by the GIL, and the flags_asyncio.py is single-threaded.
+Strictly speaking, none of the concurrent scripts we tested so far can perform downloads in parallel. The concurrent.futures examples are limited by the GIL, and the flags_asyncio.py is single-threaded.  
+    严格来说，我们目前测试过的并发脚本没有一个可以实现并行的下载。concurrent.futures示例被GIL所限制，flags_asyncio.py是单线程。
 
 At this point, you may have questions about the informal benchmarks we just did:
-- How can flags_threadpool.py perform 5× faster than flags.py if Python threads are limited by a Global Interpreter Lock (GIL) that only lets one thread run at any time?
-- How can flags_asyncio.py perform 5× faster than flags.py when both are single threaded?
+    在这点上，你可能会对我们刚刚做的那些非正式基准有些问题：
+- How can flags_threadpool.py perform 5× faster than flags.py if Python threads are limited by a Global Interpreter Lock (GIL) that only lets one thread run at any time?  
+    如果Python线程被全局解释器锁限制到任何时间只可以运行一条线程，falgs_threadpool.py是如何做到比flags.py快5倍的？
+- How can flags_asyncio.py perform 5× faster than flags.py when both are single threaded?  
+    同是一条线程，flags_asyncio.py是如何比flags.py快5倍的？
 
-I will answer the second question in “Running Circling Around Blocking Calls” on page 552.
+I will answer the second question in “Running Circling Around Blocking Calls” on page 552.  
+    我将在552页的“Running Circling Around Blocking Calls”回答第二个问题。
 
-Read on to understand why the GIL is nearly harmless with I/O-bound processing.
+Read on to understand why the GIL is nearly harmless with I/O-bound processing.  
+    继续读下去，去理解为什么GIL对IO限制进程几乎是无影响的。
 
 
 ## 17.2 Blocking I/O and the GIL
+## 17.2 I/O阻塞与GIL
 
-The CPython interpreter is not thread-safe internally, so it has a Global Interpreter Lock (GIL), which allows only one thread at a time to execute Python bytecodes. That’s why a single Python process usually cannot use multiple CPU cores at the same time.[3]
+The CPython interpreter is not thread-safe internally, so it has a Global Interpreter Lock (GIL), which allows only one thread at a time to execute Python bytecodes. That’s why a single Python process usually cannot use multiple CPU cores at the same time.[3]  
+    Cpython解释器在内部不是线程安全的，所以他有个全局解释器锁（GIL），在同一时刻它只允许一条线程去执行Python字节码。这就是一个单独的Python进程通常不能同时使用多个CPU核的原因。
 
-When we write Python code, we have no control over the GIL, but a built-in function or an extension written in C can release the GIL while running time-consuming tasks. In fact, a Python library coded in C can manage the GIL, launch its own OS threads, and take advantage of all available CPU cores. This complicates the code of the library considerably, and most library authors don’t do it.
+When we write Python code, we have no control over the GIL, but a built-in function or an extension written in C can release the GIL while running time-consuming tasks. In fact, a Python library coded in C can manage the GIL, launch its own OS threads, and take advantage of all available CPU cores. This complicates the code of the library considerably, and most library authors don’t do it.  
+    当我们编写Python代码时，我们无法控制GIL，但是当运行耗时任务阶段，一个内建的函数或一个由C写的扩展可以释放GIL。事实上，一个由C写的Python库代码可以管理GIL，启动他自己的OS线程，并利用到所有可用的CPU核。这使得库的代码非常复杂，大部分库作者不会这样做。
 
-However, all standard library functions that perform blocking I/O release the GIL when waiting for a result from the OS. This means Python programs that are I/O bound can benefit from using threads at the Python level: while one Python thread is waiting for a response from the network, the blocked I/O function releases the GIL so another thread can run.
+However, all standard library functions that perform blocking I/O release the GIL when waiting for a result from the OS. This means Python programs that are I/O bound can benefit from using threads at the Python level: while one Python thread is waiting for a response from the network, the blocked I/O function releases the GIL so another thread can run.  
+    但是，当在等待OS返回结果时，所有执行阻塞I/O的标准库函数都释放了GIL。这意味着受I/O限制的Python程序可以通过在Python级别使用线程受益：当一个Python线程等待网络的响应，阻塞I/O函数释放了GIL以致其他线程可以运行。
 
-That’s why David Beazley says: “Python threads are great at doing nothing.”[4]
+That’s why David Beazley says: “Python threads are great at doing nothing.”[4]  
+    这就是为什么David Beazley说：“Python线程很擅长什么都不做。”
+·
 
     Every blocking I/O function in the Python standard library releases the GIL, allowing other threads to run. The time.sleep() function also releases the GIL. Therefore, Python threads are perfectly usable in I/O-bound applications, despite the GIL.
+    标准库中的任何阻塞I/O函数都会释放GIL，以运行其他线程继续运行。time.sleep()函数也会释放GIL。因此，尽管存在GIL，Python线程仍然完美地适用于I/O限制的应用中。
 
-Now let’s take a brief look at a simple way to work around the GIL for CPU-bound jobs using concurrent.futures.
+Now let’s take a brief look at a simple way to work around the GIL for CPU-bound jobs using concurrent.futures.  
+    现在我们看看一个简单的方法，通过使用concurrent.futures来绕开CPU限制任务。
 
 
 ## 17.3
