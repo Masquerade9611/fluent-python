@@ -396,7 +396,64 @@ That’s why David Beazley says: “Python threads are great at doing nothing.�
 Now let’s take a brief look at a simple way to work around the GIL for CPU-bound jobs using concurrent.futures.  
     现在我们看看一个简单的方法，通过使用concurrent.futures来绕开CPU限制任务。
 
+[3] This is a limitation of the CPython interpreter, not of the Python language itself. Jython and IronPython are not limited in this way; but Pypy, the fastest Python interpreter available, also has a GIL.  
+    这是Cpython解释器的限制，不是Python语言本身的。Jython和IronPython并那没有该限制；但是最快的Python解释器Pypy同样有GIL。
+[4] Slide 106 of “Generators: The Final Frontier”.  
+    《Generators: The Final Frontier》106页
 
-## 17.3
 
+## 17.3 Launching Processes with concurrent.futures
+## 17.3 使用concurrent.futures启动进程
 
+The concurrent.futures documentation page is subtitled “Launching parallel tasks”. The package does enable truly parallel computations because it supports distributing work among multiple Python processes using the ProcessPoolExecutor class—thus bypassing the GIL and leveraging all available CPU cores, if you need to do CPU-bound processing.  
+    concurrent.futures文档页的小标题为“启动并行任务”。该包
+
+Both ProcessPoolExecutor and ThreadPoolExecutor implement the generic Executor interface, so it’s very easy to switch from a thread-based to a process-based solution using concurrent.futures.
+
+There is no advantage in using a ProcessPoolExecutor for the flags download example or any I/O-bound job. It’s easy to verify this; just change these lines in Example 17-3:
+
+```python
+def download_many(cc_list):
+    workers = min(MAX_WORKERS, len(cc_list))
+    with futures.ThreadPoolExecutor(workers) as executor:
+```
+
+To This:
+
+```python
+def download_many(cc_list):
+    with futures.ProcessPoolExecutor() as executor:
+```
+
+For simple uses, the only notable difference between the two concrete executor classes is that ThreadPoolExecutor.__init__ requires a max_workers argument setting the number of threads in the pool. That is an optional argument in ProcessPoolExecutor, and most of the time we don’t use it—the default is the number of CPUs returned by os.cpu_count(). This makes sense: for CPU-bound processing, it makes no sense to ask for more workers than CPUs. On the other hand, for I/O-bound processing, you may use 10, 100, or 1,000 threads in a ThreadPoolExecutor; the best number depends on what you’re doing and the available memory, and finding the optimal number will require careful testing.
+
+A few tests revealed that the average time to download the 20 flags increased to 1.8s with a ProcessPoolExecutor—compared to 1.4s in the original ThreadPoolExecutor version. The main reason for this is likely to be the limit of four concurrent downloads on my four-core machine, against 20 workers in the thread pool version.
+
+The value of ProcessPoolExecutor is in CPU-intensive jobs. I did some performance tests with a couple of CPU-bound scripts:
+
+*arcfour_futures.py*
+    Encrypt and decrypt a dozen byte arrays with sizes from 149 KB to 384 KB using a pure-Python implementation of the RC4 algorithm (listing: Example A-7).
+
+*sha_futures.py*
+    Compute the SHA-256 hash of a dozen 1 MB byte arrays with the standard library hashlib package, which uses the OpenSSL library (listing: Example A-9).
+
+Neither of these scripts do I/O except to display summary results. They build and process all their data in memory, so I/O does not interfere with their execution time.
+
+Table 17-1 shows the average timings I got after 64 runs of the RC4 example and 48 runs of the SHA example. The timings include the time to actually spawn the worker processes.
+
+Table 17-1. Time and speedup factor for the RC4 and SHA examples with one to four workers on an Intel Core i7 2.7 GHz quad-core machine, using Python 3.4
+
+| Workers | RC4 time | RC4 factor | SHA time | SHA factor |
+| --- | --- | --- | --- | --- |
+| 1 | 11.48s | 1.00x | 22.66s | 1.00x |
+| 2 | 8.65s | 1.33x | 14.90s | 1.52x |
+| 3 | 6.04s | 1.90x | 11.91s | 1.90x |
+| 4 | 5.58s | 2.06x | 10.89s | 2.08x |
+
+In summary, for cryptographic algorithms, you can expect to double the performance by spawning four worker processes with a ProcessPoolExecutor, if you have four CPU cores.
+
+For the pure-Python RC4 example, you can get results 3.8 times faster if you use PyPy and four workers, compared with CPython and four workers. That’s a speedup of 7.8 times in relation to the baseline of one worker with CPython in Table 17-1.
+
+    If you are doing CPU-intensive work in Python, you should try PyPy. The arcfour_futures.py example ran from 3.8 to 5.1 times faster using PyPy, depending on the number of workers used. I tested with PyPy 2.4.0, which is compatible with Python 3.2.5, so it has concurrent.futures in the standard library.
+
+Now let’s investigate the behavior of a thread pool with a demonstration program that launches a pool with three workers, running five callables that output timestamped messages.
