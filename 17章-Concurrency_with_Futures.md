@@ -406,11 +406,13 @@ Now let’s take a brief look at a simple way to work around the GIL for CPU-bou
 ## 17.3 使用concurrent.futures启动进程
 
 The concurrent.futures documentation page is subtitled “Launching parallel tasks”. The package does enable truly parallel computations because it supports distributing work among multiple Python processes using the ProcessPoolExecutor class—thus bypassing the GIL and leveraging all available CPU cores, if you need to do CPU-bound processing.  
-    concurrent.futures文档页的小标题为“启动并行任务”。该包
+    concurrent.futures文档页的小标题为“启动并行任务”。该库能够实现真正的并行计算，因为它支持使用ProcessPoolExecutor类在多个Python进程间分配任务——因此绕过了GIL并充分利用到所有可用的CPU核，如果你需要进行CPU受限的任务。
 
-Both ProcessPoolExecutor and ThreadPoolExecutor implement the generic Executor interface, so it’s very easy to switch from a thread-based to a process-based solution using concurrent.futures.
+Both ProcessPoolExecutor and ThreadPoolExecutor implement the generic Executor interface, so it’s very easy to switch from a thread-based to a process-based solution using concurrent.futures.  
+    ProcessPoolExecutor和ThreadPoolExecutor都实现了通用的Executor接口，所以利用concurrent.futures从一个线程基础切换至进程基础很容易。
 
-There is no advantage in using a ProcessPoolExecutor for the flags download example or any I/O-bound job. It’s easy to verify this; just change these lines in Example 17-3:
+There is no advantage in using a ProcessPoolExecutor for the flags download example or any I/O-bound job. It’s easy to verify this; just change these lines in Example 17-3:  
+    对之前的flags下载示例或任何IO限制任务来说，使用ProcessPoolExecutor是毫无优势的。这很容易验证，只需要修改示例17-3中的部分代码：
 
 ```python
 def download_many(cc_list):
@@ -425,7 +427,8 @@ def download_many(cc_list):
     with futures.ProcessPoolExecutor() as executor:
 ```
 
-For simple uses, the only notable difference between the two concrete executor classes is that ThreadPoolExecutor.__init__ requires a max_workers argument setting the number of threads in the pool. That is an optional argument in ProcessPoolExecutor, and most of the time we don’t use it—the default is the number of CPUs returned by os.cpu_count(). This makes sense: for CPU-bound processing, it makes no sense to ask for more workers than CPUs. On the other hand, for I/O-bound processing, you may use 10, 100, or 1,000 threads in a ThreadPoolExecutor; the best number depends on what you’re doing and the available memory, and finding the optimal number will require careful testing.
+For simple uses, the only notable difference between the two concrete executor classes is that ThreadPoolExecutor.__init__ requires a max_workers argument setting the number of threads in the pool. That is an optional argument in ProcessPoolExecutor, and most of the time we don’t use it—the default is the number of CPUs returned by os.cpu_count(). This makes sense: for CPU-bound processing, it makes no sense to ask for more workers than CPUs. On the other hand, for I/O-bound processing, you may use 10, 100, or 1,000 threads in a ThreadPoolExecutor; the best number depends on what you’re doing and the available memory, and finding the optimal number will require careful testing.  
+    
 
 A few tests revealed that the average time to download the 20 flags increased to 1.8s with a ProcessPoolExecutor—compared to 1.4s in the original ThreadPoolExecutor version. The main reason for this is likely to be the limit of four concurrent downloads on my four-core machine, against 20 workers in the thread pool version.
 
