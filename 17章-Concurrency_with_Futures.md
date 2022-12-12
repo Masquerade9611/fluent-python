@@ -428,23 +428,30 @@ def download_many(cc_list):
 ```
 
 For simple uses, the only notable difference between the two concrete executor classes is that ThreadPoolExecutor.__init__ requires a max_workers argument setting the number of threads in the pool. That is an optional argument in ProcessPoolExecutor, and most of the time we don’t use it—the default is the number of CPUs returned by os.cpu_count(). This makes sense: for CPU-bound processing, it makes no sense to ask for more workers than CPUs. On the other hand, for I/O-bound processing, you may use 10, 100, or 1,000 threads in a ThreadPoolExecutor; the best number depends on what you’re doing and the available memory, and finding the optimal number will require careful testing.  
-    
+    对于只是简单的使用来说，两个executor类间唯一需要注意的区别是，ThreadPoolExecutor.__init__需要一个max_workers参数来设定池中的线程数，而这在ProcessPoolExecutor中是个可选参数，大部分情况下我们不会用到它——默认使用os.cpu_count()返回的CPU数。这很容易理解：对CPU密集型任务来说，你可能在一个ThreadPoolExecutor中用到10，100或1000个线程；但最佳数量取决于你的任务类型以及可用的内存，需要通过仔细的测试来找到这个最佳值。
 
-A few tests revealed that the average time to download the 20 flags increased to 1.8s with a ProcessPoolExecutor—compared to 1.4s in the original ThreadPoolExecutor version. The main reason for this is likely to be the limit of four concurrent downloads on my four-core machine, against 20 workers in the thread pool version.
+A few tests revealed that the average time to download the 20 flags increased to 1.8s with a ProcessPoolExecutor—compared to 1.4s in the original ThreadPoolExecutor version. The main reason for this is likely to be the limit of four concurrent downloads on my four-core machine, against 20 workers in the thread pool version.  
+    一些测试显示，使用ProcessPoolExecutor下载20个国旗的平均时间增长到1.8秒——相比于原始的ThreadPoolExecutor版本的1.4秒来讲。这种情况的主要原因是可能是，与线程池版本的20个worker相比，四核机器的并行下载的极限就到这里了。
 
-The value of ProcessPoolExecutor is in CPU-intensive jobs. I did some performance tests with a couple of CPU-bound scripts:
+The value of ProcessPoolExecutor is in CPU-intensive jobs. I did some performance tests with a couple of CPU-bound scripts:  
+    ProcessPoolExecutor的价值体现在CPU集中型任务上。我用一对CPU密集型脚本来做一些性能测试：
 
 *arcfour_futures.py*
-    Encrypt and decrypt a dozen byte arrays with sizes from 149 KB to 384 KB using a pure-Python implementation of the RC4 algorithm (listing: Example A-7).
+    Encrypt and decrypt a dozen byte arrays with sizes from 149 KB to 384 KB using a pure-Python implementation of the RC4 algorithm (listing: Example A-7).  
+    使用RC4算法的纯Python实现，对12个大小从149KB到384KB的字节序列进行加密与解密（示例A-7）。
 
 *sha_futures.py*
-    Compute the SHA-256 hash of a dozen 1 MB byte arrays with the standard library hashlib package, which uses the OpenSSL library (listing: Example A-9).
+    Compute the SHA-256 hash of a dozen 1 MB byte arrays with the standard library hashlib package, which uses the OpenSSL library (listing: Example A-9).  
+    使用标准库hashlib包对12个1MB字节序列计算SHA-256哈希值，该包使用了OpenSSL库（示例A-9)。
 
-Neither of these scripts do I/O except to display summary results. They build and process all their data in memory, so I/O does not interfere with their execution time.
+Neither of these scripts do I/O except to display summary results. They build and process all their data in memory, so I/O does not interfere with their execution time.  
+    除了显示总和的结果外，这两个脚本都没有做其余IO操作。他们在内存中创建并处理数据，所以IO操作不会影响他们的执行时间。
 
-Table 17-1 shows the average timings I got after 64 runs of the RC4 example and 48 runs of the SHA example. The timings include the time to actually spawn the worker processes.
+Table 17-1 shows the average timings I got after 64 runs of the RC4 example and 48 runs of the SHA example. The timings include the time to actually spawn the worker processes.  
+    表17-1展示了运行64次RC4示例和48次SHAs示例后得到的平均时间。时段包括实际生成工作进程的时间。
 
-Table 17-1. Time and speedup factor for the RC4 and SHA examples with one to four workers on an Intel Core i7 2.7 GHz quad-core machine, using Python 3.4
+Table 17-1. Time and speedup factor for the RC4 and SHA examples with one to four workers on an Intel Core i7 2.7 GHz quad-core machine, using Python 3.4  
+    表17-1 在Intel Core i7 2.7GHz 四核机器上，使用Python3.4实现的RC4和SHA示例分别通过1至4个worker所得到的时间和加速因子。
 
 | Workers | RC4 time | RC4 factor | SHA time | SHA factor |
 | --- | --- | --- | --- | --- |
@@ -453,10 +460,15 @@ Table 17-1. Time and speedup factor for the RC4 and SHA examples with one to fou
 | 3 | 6.04s | 1.90x | 11.91s | 1.90x |
 | 4 | 5.58s | 2.06x | 10.89s | 2.08x |
 
-In summary, for cryptographic algorithms, you can expect to double the performance by spawning four worker processes with a ProcessPoolExecutor, if you have four CPU cores.
+In summary, for cryptographic algorithms, you can expect to double the performance by spawning four worker processes with a ProcessPoolExecutor, if you have four CPU cores.  
+    概括来讲，对于加密算法，如果你有四个CPU核，你可以期望用ProcessPoolExecutor四个工作线程来实现双倍的性能。
 
-For the pure-Python RC4 example, you can get results 3.8 times faster if you use PyPy and four workers, compared with CPython and four workers. That’s a speedup of 7.8 times in relation to the baseline of one worker with CPython in Table 17-1.
+For the pure-Python RC4 example, you can get results 3.8 times faster if you use PyPy and four workers, compared with CPython and four workers. That’s a speedup of 7.8 times in relation to the baseline of one worker with CPython in Table 17-1.  
+    对于纯Python实现的RC4示例，如果你使用PyPy和四个worker，会比Cpython+四worker快3.8倍。与表17-1中CPython的单worker的基准相比，是7.8倍的提速。
+`
 
     If you are doing CPU-intensive work in Python, you should try PyPy. The arcfour_futures.py example ran from 3.8 to 5.1 times faster using PyPy, depending on the number of workers used. I tested with PyPy 2.4.0, which is compatible with Python 3.2.5, so it has concurrent.futures in the standard library.
+        如果使用Python做CPU集中型的任务，你应该尝试使用PyPy。arcfour_futures.py示例使用PyPy运行速度快3.8到5.5倍，这取决于使用worker的数据。我使用兼容Python3.2.5的PyPy 2.4.0测试，所以标准库中有concurrent.futures。
 
 Now let’s investigate the behavior of a thread pool with a demonstration program that launches a pool with three workers, running five callables that output timestamped messages.
+    现在我们通过一个示例程序来研究下线程池的行为，该程序启动一个3 worker的池，运行5个输出时间戳信息的可调用对象。
