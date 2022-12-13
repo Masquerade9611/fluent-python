@@ -472,3 +472,105 @@ For the pure-Python RC4 example, you can get results 3.8 times faster if you use
 
 Now let’s investigate the behavior of a thread pool with a demonstration program that launches a pool with three workers, running five callables that output timestamped messages.
     现在我们通过一个示例程序来研究下线程池的行为，该程序启动一个3 worker的池，运行5个输出时间戳信息的可调用对象。
+
+
+## Experimenting with Executor.map
+## 尝试使用Executor.map
+
+The simplest way to run several callables concurrently is with the Executor.map function we first saw in Example 17-3. Example 17-6 is a script to demonstrate how Executor.map works in some detail. Its output appears in Example 17-7.  
+    并发运行不同调用对象的最简单方式是使用Executor.map，我们最初在示例17-3时提到过。示例17-6的脚本详细演示了Executor.map如何工作。示例17-7为它的输出。
+
+Example 17-6. demo_executor_map.py: Simple demonstration of the map method of ThreadPoolExecutor
+    示例17-6. demo_executor_map.py：ThreadPoolExecutor中map方法的简单演示
+
+```python
+from time import sleep, strftime
+from concurrent import futures
+
+def display(*args):  # 1
+    print(strftime('[%H:%M:%S]'), end=' ')
+    print(*args)
+
+def loiter(n):  # 2
+    msg = '{}loiter({}): doing nothing for {}s...'
+    display(msg.format('\t'*n, n, n))
+    sleep(n)
+    msg = '{}loiter({}): done.'
+    display(msg.format('\t'*n, n))
+    return n * 10  # 3
+
+def main():
+    display('Script starting.')
+    executor = futures.ThreadPoolExecutor(max_workers=3)  # 4
+    results = executor.map(loiter, range(5))  # 5
+    display('results:', results)  # 6
+    display('Waiting for individual results:')
+    for i, result in enumerate(results):  # 7
+        display('result {}: {}'.format(i, result))
+
+
+main()
+
+```
+
+1. This function simply prints whatever argumentsit gets, preceded by a timestamp in the format [HH:MM:SS].  
+    该函数简单地打印它接收到的任何参数，在此之前的是[HH:MM:SS]格式的时间戳。
+2. loiter does nothing except display a message when it starts, sleep for n seconds, then display a message when it ends; tabs are used to indent the messages according to the value of n.  
+    loiter
+3. loiter returns n * 10 so we can see how to collect results.
+4. Create a ThreadPoolExecutor with three threads.
+5. Submit five tasks to the executor (because there are only three threads, only three of those tasks will start immediately: the calls loiter(0), loiter(1), and loiter(2)); this is a nonblocking call.
+6. Immediately display the results of invoking executor.map: it’s a generator, as the output in Example 17-7 shows.
+7. The enumerate call in the for loop will implicitly invoke next(results), which in turn will invoke _f.result() on the (internal) _f future representing the first call, loiter(0). The result method will block until the future is done, therefore each iteration in this loop will have to wait for the next result to be ready.
+
+I encourage you to run Example 17-6 and see the display being updated incrementally. While you’re at it, play with the max_workers argument for the ThreadPoolExecutor and with the range function that produces the arguments for the executor.map call—or replace it with lists of handpicked values to create different delays.
+
+Example 17-7 shows a sample run of Example 17-6.
+
+Example 17-7. Sample run of demo_executor_map.py from Example 17-6
+
+```python
+$ python3 demo_executor_map.py
+[15:56:50] Script starting.  # 1
+[15:56:50] loiter(0): doing nothing for 0s...  # 2
+[15:56:50] loiter(0): done.
+[15:56:50]      loiter(1): doing nothing for 1s...  # 3
+[15:56:50]          loiter(2): doing nothing for 2s...
+[15:56:50] results: <generator object result_iterator at 0x106517168>  # 4
+[15:56:50]              loiter(3): doing nothing for 3s...  # 5
+[15:56:50] Waiting for individual results:
+[15:56:50] result 0: 0  # 6
+[15:56:51]      loiter(1): done.  # 7
+[15:56:51]                  loiter(4): doing nothing for 4s...
+[15:56:51] result 1: 10  # 8
+[15:56:52]          loiter(2): done.  # 9
+[15:56:52] result 2: 20
+[15:56:53]              loiter(3): done.
+[15:56:53] result 3: 30
+[15:56:55]                  loiter(4): done.  # 10
+[15:56:55] result 4: 40
+```
+
+1. This run started at 15:56:50.
+2. The first thread executes loiter(0), so it will sleep for 0s and return even before the second thread has a chance to start, but YMMV.5
+3. loiter(1) and loiter(2) start immediately (because the thread pool has three workers, it can run three functions concurrently).
+4. This shows that the results returned by executor.map is a generator; nothing so far would block, regardless of the number of tasks and the max_workers setting.
+5. Because loiter(0) is done, the first worker is now available to start the fourth thread for loiter(3).
+6. This is where execution may block, depending on the parameters given to the loiter calls: the __next__ method of the results generator must wait until the first future is complete. In this case, it won’t block because the call to loiter(0) finished before this loop started. Note that everything up to this point happened within the same second: 15:56:50.
+7. loiter(1) is done one second later, at 15:56:51. The thread is freed to start loiter(4).
+8. The result of loiter(1) is shown: 10. Now the for loop will block waiting for the result of loiter(2).
+9. The pattern repeats: loiter(2) is done, itsresult isshown;samewith loiter(3).
+10. There is a 2s delay until loiter(4) is done, because it started at 15:56:51 and did nothing for 4s.
+
+The Executor.map function is easy to use but it has a feature that may or may not be helpful, depending on your needs: it returns the results exactly in the same order as the calls are started: if the first call takes 10s to produce a result, and the others take 1s each, your code will block for 10s as it tries to retrieve the first result of the generator returned by map. After that, you’ll get the remaining results without blocking because they will be done. That’s OK when you must have all the results before proceeding, but often it’s preferable to get the results as they are ready, regardless of the order they were submitted. To do that, you need a combination of the Executor.submit method and the futures.as_completed function, as we saw in Example 17-4. We’ll come back to this technique in “Using futures.as_completed” on page 527.
+
+    The combination of executor.submit and futures.as_completed is more flexible than executor.map because you can submit different callables and arguments, while executor.map is designed to run the same callable on the different arguments. In addition, the set of futures you passto futures.as_completed may come from more than one executor—perhaps some were created by a ThreadPoolExecutor instance while others are from a ProcessPoolExecutor.
+
+In the next section, we will resume the flag download examples with new requirements that will force us to iterate over the results of futures.as_completed instead of using executor.map.
+
+
+
+
+
+
+
