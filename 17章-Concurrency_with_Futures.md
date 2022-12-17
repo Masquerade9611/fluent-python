@@ -516,12 +516,17 @@ main()
 1. This function simply prints whatever argumentsit gets, preceded by a timestamp in the format [HH:MM:SS].  
     该函数简单地打印它接收到的任何参数，在此之前的是[HH:MM:SS]格式的时间戳。
 2. loiter does nothing except display a message when it starts, sleep for n seconds, then display a message when it ends; tabs are used to indent the messages according to the value of n.  
-    loiter
-3. loiter returns n * 10 so we can see how to collect results.
-4. Create a ThreadPoolExecutor with three threads.
-5. Submit five tasks to the executor (because there are only three threads, only three of those tasks will start immediately: the calls loiter(0), loiter(1), and loiter(2)); this is a nonblocking call.
-6. Immediately display the results of invoking executor.map: it’s a generator, as the output in Example 17-7 shows.
-7. The enumerate call in the for loop will implicitly invoke next(results), which in turn will invoke _f.result() on the (internal) _f future representing the first call, loiter(0). The result method will block until the future is done, therefore each iteration in this loop will have to wait for the next result to be ready.
+    loliter仅仅用来显示启动/睡眠的时间信息，最后在结束时也会显示；tab被用来以n的值来缩进信息。
+3. loiter returns n * 10 so we can see how to collect results.  
+    loiter最终返回n * 10，所以我们可以看到收集结果的方式。
+4. Create a ThreadPoolExecutor with three threads.  
+    穿件一个3线程的ThreadPoolExecutor。
+5. Submit five tasks to the executor (because there are only three threads, only three of those tasks will start immediately: the calls loiter(0), loiter(1), and loiter(2)); this is a nonblocking call.  
+    向executor提交5个任务（因为只有3个线程，所以这些任务中的3个会立刻启动：调用loiter(0)，loiter(1)和loiter(2))；这是非阻塞的调用。
+6. Immediately display the results of invoking executor.map: it’s a generator, as the output in Example 17-7 shows.  
+    立刻显示executor.map的结果：这是一个生成器，和示例17-7的输出一致。
+7. The enumerate call in the for loop will implicitly invoke next(results), which in turn will invoke _f.result() on the (internal) _f future representing the first call, loiter(0). The result method will block until the future is done, therefore each iteration in this loop will have to wait for the next result to be ready.  
+    for循环中调用到的enumerate将会隐式地调用next(results)，即转而调用（内置的）_f future上的_f.result()，代表第一次调用，loiter(0)。直到futrue结束前result方法将会阻塞，因此该循环中的任一项必须等待下一个result准备完毕。
 
 I encourage you to run Example 17-6 and see the display being updated incrementally. While you’re at it, play with the max_workers argument for the ThreadPoolExecutor and with the range function that produces the arguments for the executor.map call—or replace it with lists of handpicked values to create different delays.
 
