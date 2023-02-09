@@ -74,7 +74,7 @@ RU IN ID DE BR VN PK MX US IR ET EG NG BD FR CN JP PH CD TR  # 5
     注意国家代码的顺序：在并发脚本中的每次下载为不同顺序。
 
 The difference in performance between the concurrent scripts is not significant, but they are both more than five times faster than the sequential script—and this is just for a fairly small task. If you scale the task to hundreds of downloads, the concurrent scripts can outpace the sequential one by a factor or 20 or more.  
-    并发脚本间的性能差异并不明显，但他们都要比顺序脚本要快5秒——并且这只是一个相当小的任务。如果你将该任务分配至梳百词的下载，那么并发脚本的速度可以超过顺序脚本的1/20甚至更多。
+    并发脚本间的性能差异并不明显，但他们都要比顺序脚本要快5秒——并且这只是一个相当小的任务。如果你将该任务分配至数百次的下载，那么并发脚本的速度可以超过顺序脚本的1/20甚至更多。
 
     While testing concurrent HTTP clients on the public Web you may inadvertently launch a denial-of-service (DoS) attack, or be suspected of doing so. In the case of Example 17-1, it’s OK to do it because those scripts are hardcoded to make only 20 requests. For testing nontrivial HTTP clients, you should set up your own test server. The 17-futures/countries/README.rst file in the Fluent Python code GitHub repository has instructions for setting a local Nginx server.  
     当在公共Web上测试并发HTTP客户端时，你可能会无意间发起一个拒绝服务（denial-of-service, DoS）攻击，或者被怀疑做了这种事。示例17-1可行是因为那些脚本时硬编码，仅仅发出20次请求。为了测试不重要的HTTP客户端，你应该配置你自己的服务。在Fluent Python代码GitHub库中的17-futures/countries/README.rst文件介绍了有关配置本地Nginx服务的内容。
@@ -391,7 +391,7 @@ That’s why David Beazley says: “Python threads are great at doing nothing.�
 ·
 
     Every blocking I/O function in the Python standard library releases the GIL, allowing other threads to run. The time.sleep() function also releases the GIL. Therefore, Python threads are perfectly usable in I/O-bound applications, despite the GIL.
-    标准库中的任何阻塞I/O函数都会释放GIL，以运行其他线程继续运行。time.sleep()函数也会释放GIL。因此，尽管存在GIL，Python线程仍然完美地适用于I/O限制的应用中。
+    标准库中的任何阻塞I/O函数都会释放GIL，以允许其他线程继续运行。time.sleep()函数也会释放GIL。因此，尽管存在GIL，Python线程仍然完美地适用于I/O限制的应用中。
 
 Now let’s take a brief look at a simple way to work around the GIL for CPU-bound jobs using concurrent.futures.  
     现在我们看看一个简单的方法，通过使用concurrent.futures来绕开CPU限制任务。
@@ -520,7 +520,7 @@ main()
 3. loiter returns n * 10 so we can see how to collect results.  
     loiter最终返回n * 10，所以我们可以看到收集结果的方式。
 4. Create a ThreadPoolExecutor with three threads.  
-    穿件一个3线程的ThreadPoolExecutor。
+    创建一个3线程的ThreadPoolExecutor。
 5. Submit five tasks to the executor (because there are only three threads, only three of those tasks will start immediately: the calls loiter(0), loiter(1), and loiter(2)); this is a nonblocking call.  
     向executor提交5个任务（因为只有3个线程，所以这些任务中的3个会立刻启动：调用loiter(0)，loiter(1)和loiter(2))；这是非阻塞的调用。
 6. Immediately display the results of invoking executor.map: it’s a generator, as the output in Example 17-7 shows.  
@@ -528,7 +528,8 @@ main()
 7. The enumerate call in the for loop will implicitly invoke next(results), which in turn will invoke _f.result() on the (internal) _f future representing the first call, loiter(0). The result method will block until the future is done, therefore each iteration in this loop will have to wait for the next result to be ready.  
     for循环中调用到的enumerate将会隐式地调用next(results)，即转而调用（内置的）_f future上的_f.result()，代表第一次调用，loiter(0)。直到futrue结束前result方法将会阻塞，因此该循环中的任一项必须等待下一个result准备完毕。
 
-I encourage you to run Example 17-6 and see the display being updated incrementally. While you’re at it, play with the max_workers argument for the ThreadPoolExecutor and with the range function that produces the arguments for the executor.map call—or replace it with lists of handpicked values to create different delays.
+I encourage you to run Example 17-6 and see the display being updated incrementally. While you’re at it, play with the max_workers argument for the ThreadPoolExecutor and with the range function that produces the arguments for the executor.map call—or replace it with lists of handpicked values to create different delays.  
+    我鼓励你亲自运行下示例17-6，看看他的输出不断更新的过程。当你自己运行时，试着使用ThreadPoolExecutor的max_workers参数和用于为executor.map生成参数的range函数——或将其直接替换为自定义的value列表，来创建不同的延迟时间。
 
 Example 17-7 shows a sample run of Example 17-6.
 
@@ -556,22 +557,166 @@ $ python3 demo_executor_map.py
 [15:56:55] result 4: 40
 ```
 
-1. This run started at 15:56:50.
-2. The first thread executes loiter(0), so it will sleep for 0s and return even before the second thread has a chance to start, but YMMV.5
-3. loiter(1) and loiter(2) start immediately (because the thread pool has three workers, it can run three functions concurrently).
-4. This shows that the results returned by executor.map is a generator; nothing so far would block, regardless of the number of tasks and the max_workers setting.
-5. Because loiter(0) is done, the first worker is now available to start the fourth thread for loiter(3).
-6. This is where execution may block, depending on the parameters given to the loiter calls: the __next__ method of the results generator must wait until the first future is complete. In this case, it won’t block because the call to loiter(0) finished before this loop started. Note that everything up to this point happened within the same second: 15:56:50.
-7. loiter(1) is done one second later, at 15:56:51. The thread is freed to start loiter(4).
-8. The result of loiter(1) is shown: 10. Now the for loop will block waiting for the result of loiter(2).
-9. The pattern repeats: loiter(2) is done, itsresult isshown;samewith loiter(3).
-10. There is a 2s delay until loiter(4) is done, because it started at 15:56:51 and did nothing for 4s.
+1. This run started at 15:56:50.  
+    运行启动于15:56:50
+2. The first thread executes loiter(0), so it will sleep for 0s and return even before the second thread has a chance to start, but YMMV.5  
+    第一个线程执行loiter(0)，所以将sleep 0秒，甚至有机会在第二个线程启动前就return。
+3. loiter(1) and loiter(2) start immediately (because the thread pool has three workers, it can run three functions concurrently).  
+    loitor(1)和loiter(2)同样立即启动（因为线程池有3个worker，可以同时运行三个函数）。
+4. This shows that the results returned by executor.map is a generator; nothing so far would block, regardless of the number of tasks and the max_workers setting.  
+    通过executor.map实例化的results是一个生成器；到目前为止，不管task数量与max_workers如何设置，都不会发生阻塞。
+5. Because loiter(0) is done, the first worker is now available to start the fourth thread for loiter(3).  
+    由于loiter(0)已经完成，第一个worker被提供给loiter(3)，启动第四条线程。
+6. This is where execution may block, depending on the parameters given to the loiter calls: the __next__ method of the results generator must wait until the first future is complete. In this case, it won’t block because the call to loiter(0) finished before this loop started. Note that everything up to this point happened within the same second: 15:56:50.  
+    这里可能是执行出现阻塞的地方，取决于传入loiter的参数：results生成器的__next__方法必须等待第一个future结束。在这组case中，由于loiter(0)的调用结束于该loop启动之前，所以不会产生阻塞。注意，到目前为止所有事件都发生于相同的时刻：15:56:50。
+7. loiter(1) is done one second later, at 15:56:51. The thread is freed to start loiter(4).  
+    loiter(1)于1秒后的15:56:61结束。该线程被释放，启动loiter(4)。
+8. The result of loiter(1) is shown: 10. Now the for loop will block waiting for the result of loiter(2).  
+    loiter(1)的result为10。此刻for循环将阻塞等待loiter(2)的result。
+9. The pattern repeats: loiter(2) is done, its result is shown;samewith loiter(3).  
+    模板重复：loiter(2)结束，展示result；loiter(3)同理。
+10. There is a 2s delay until loiter(4) is done, because it started at 15:56:51 and did nothing for 4s.  
+    在loiter(4)结束前有2秒延迟，因为他启动于15:56:51且doing nothing for 4秒。
 
-The Executor.map function is easy to use but it has a feature that may or may not be helpful, depending on your needs: it returns the results exactly in the same order as the calls are started: if the first call takes 10s to produce a result, and the others take 1s each, your code will block for 10s as it tries to retrieve the first result of the generator returned by map. After that, you’ll get the remaining results without blocking because they will be done. That’s OK when you must have all the results before proceeding, but often it’s preferable to get the results as they are ready, regardless of the order they were submitted. To do that, you need a combination of the Executor.submit method and the futures.as_completed function, as we saw in Example 17-4. We’ll come back to this technique in “Using futures.as_completed” on page 527.
+The Executor.map function is easy to use but it has a feature that may or may not be helpful, depending on your needs: it returns the results exactly in the same order as the calls are started: if the first call takes 10s to produce a result, and the others take 1s each, your code will block for 10s as it tries to retrieve the first result of the generator returned by map. After that, you’ll get the remaining results without blocking because they will be done. That’s OK when you must have all the results before proceeding, but often it’s preferable to get the results as they are ready, regardless of the order they were submitted. To do that, you need a combination of the Executor.submit method and the futures.as_completed function, as we saw in Example 17-4. We’ll come back to this technique in “Using futures.as_completed” on page 527.  
+    Excutor.map函数很实用，但是他有一个可能不太好用的特性，这取决于你的需求：他会根据你的调用顺序，精确地以相同顺序返回结果：如果第一次的调用花费了10秒产生结果，而其他的都花费1秒，那么当你的代码试图解析map返回的生成器的首个结果时，将会阻塞10秒。在那之后，你获取剩余的结果时将不会阻塞，因为他们都将被完成。当你需要在继续之前获取到所有结果的情况下，这种方式是ok的，但通常情况，更好的办法是一旦ready就获取到结果，不管他们是以何种顺序被提交进来的。为了达到这样的效果，你需要将Executor.submit方法和futures.as_completed函数结合使用，如我们在示例17-4中所视。我们将在527页的“futures._ascomplted函数使用”回到这部分技巧。
 
-    The combination of executor.submit and futures.as_completed is more flexible than executor.map because you can submit different callables and arguments, while executor.map is designed to run the same callable on the different arguments. In addition, the set of futures you passto futures.as_completed may come from more than one executor—perhaps some were created by a ThreadPoolExecutor instance while others are from a ProcessPoolExecutor.
+    The combination of executor.submit and futures.as_completed is more flexible than executor.map because you can submit different callables and arguments, while executor.map is designed to run the same callable on the different arguments. In addition, the set of futures you pass to futures.as_completed may come from more than one executor—perhaps some were created by a ThreadPoolExecutor instance while others are from a ProcessPoolExecutor.  
+    相比于executor.map，executor.submin和futures.as_completed的组合更加灵活，因为你可以提交不同的调用对象及参数，而executor.map被定义为执行相同调用对象+不同参数。此外，传递给futures.as_completed的future集合可能来自于多个executor——可能是一个由ThreadPoolExecutor创建，而其余来自于ProcessPoolExecutor。
 
 In the next section, we will resume the flag download examples with new requirements that will force us to iterate over the results of futures.as_completed instead of using executor.map.
+    在下一节中，我们将带着新需求继续下载国旗的例子，这会迫使我们使用futures.as_completed代替executor.map来遍历结果。
+
+
+## Downloads with Progress Display and Error Handling
+## 下载进度显示与Error控制
+
+As mentioned, the scripts in “Example: Web Downloads in Three Styles” on page 505 have no error handling to make them easier to read and to contrast the structure of the three approaches: sequential, threaded, and asynchronous.
+    如上所述，505页中“示例：三种风格的Web下载”脚本都没有进行错误控制，这样做让脚本更容易阅读，且更加方便对比这三种方法：顺序的，利用线程的以及异步的。
+
+In order to test the handling of a variety of error conditions, I created the flags2 examples:
+    为了测试对各种错误情况的处理，我创建了flags示例：
+
+flags2_common.py
+    This module contains common functions and settings used by all flags2 examples, including a main function, which takes care of command-line parsing, timing, and reporting results. This is really support code, not directly relevant to the subject of this chapter, so the source code is in Appendix A, Example A-10.
+    该模块包含了用于所有flags2示例的common方法与设置，包含一个main方法，负责命令行的解析，计时以及报告结果。这只是辅助代码，与本章主题没有直接关系，所以源码放置于附录A，示例A-10。
+flags2_sequential.py
+    A sequential HTTP client with proper error handling and progress bar display. Its download_one function is also used by flags2_threadpool.py.
+flags2_threadpool.py
+    Concurrent HTTP client based on futures.ThreadPoolExecutor to demonstrate error handling and integration of the progress bar.
+flags2_asyncio.py
+    Same functionality as previous example but implemented with asyncio and aiohttp. This will be covered in “Enhancing the asyncio downloader Script” on page 554, in Chapter 18.
+
+
+    Be Careful When Testing Concurrent Clients  
+    When testing concurrent HTTP clients on public HTTP servers, you may generate many requests persecond, and that’s how denial of-service (DoS) attacks are made. We don’t want to attack anyone, just learn how to build high-performance clients. Carefully throttle your clients when hitting public servers. For high concurrency experiments, set up a local HTTP server for testing. Instructions for doing it are in the README.rst file in the 17-futures/countries/ directory of the Fluent Python code repository.
+
+The most visible feature of the flags2 examples is that they have an animated, text mode progress bar implemented with the TQDM package. I posted a 108s video on YouTube to show the progress bar and contrast the speed of the three flags2 scripts. In the video, I start with the sequential download, but I interrupt it after 32s because it was going to take more than 5 minutes to hit on 676 URLs and get 194 flags; I then run the threaded and asyncio scripts three times each, and every time they complete the job in 6s or less (i.e., more than 60 times faster). Figure 17-1 shows two screenshots: during and after running flags2_threadpool.py.
+
+[Figure 17-1]
+Figure 17-1. Top-left: flags2_threadpool.py running with live progress bar generated by tqdm; bottom-right: same terminal window after the script is finished.  
+TQDM is very easy to use, the simplest example appears in an animated .gif in the project’s README.md. If you type the following code in the Python console after installing the tqdm package, you’ll see an animated progress bar were the comment is:
+```python
+
+>>> import time
+>>> from tqdm import tqdm
+>>> for i in tqdm(range(1000)):
+... time.sleep(.01)
+...
+>>> # -> progress bar will appear here <-
+```
+Besides the neat effect, the tqdm function is also interesting conceptually: it consumes any iterable and produces an iterator which, while it’s consumed, displays the progress bar and estimates the remaining time to complete all iterations. To compute that estimate, tqdm needs to get an iterable that has a len, or receive as a second argument the expected number of items. Integrating TQDM with our flags2 examples provide an opportunity to look deeper into how the concurrent scripts actually work, by forcing us to use the futures.as_completed and the asyncio.as_completed functions so that tqdm can display progress as each future is completed.
+The other feature of the flags2 example is a command-line interface. All three scripts accept the same options, and you can see them by running any of the scripts with the -h option. Example 17-8 shows the help text.
+
+Example 17-8. Help screen for the scripts in the flags2 series
+```python
+$ python3 flags2_threadpool.py -h
+usage: flags2_threadpool.py [-h] [-a] [-e] [-l N] [-m CONCURRENT] [-s LABEL]
+                            [-v]
+                            [CC [CC ...]]
+
+Download flags for country codes. Default: top 20 countries by population.
+positional arguments:
+    CC country code or 1st letter (eg. B for BA...BZ)
+optional arguments:
+    -h, --help show this help message and exit
+    -a, --all get all available flags (AD to ZW)
+    -e, --every get flags for every possible code (AA...ZZ)
+    -l N, --limit N limit to N first codes
+    -m CONCURRENT, --max_req CONCURRENT
+                        maximum concurrent requests (default=30)
+    -s LABEL, --server LABEL
+                        Server to hit; one of DELAY, ERROR, LOCAL, REMOTE(default=LOCAL)
+    -v, --verbose output detailed progress info
+```
+
+All arguments are optional. The most important arguments are discussed next.
+
+One option you can’t ignore is -s/--server: it lets you choose which HTTP server and base URL will be used in the test. You can pass one of four strings to determine where the script will look for the flags (the strings are case insensitive):
+
+
+LOCAL
+Use http://localhost:8001/flags; this is the default. You should configure a local HTTP server to answer at port 8001. I used Nginx for my tests. The README.rst file for this chapter’s example code explains how to install and configure it.
+REMOTE
+Use http://flupy.org/data/flags; that is a public website owned by me, hosted on a shared server. Please do not pound it with too many concurrent requests. The flupy.org domain is handled by a free account on the Cloudflare CDN so you may notice that the first downloads are slower, but they get faster when the CDN cache warms up.[6]
+DELAY
+Use http://localhost:8002/flags; a proxy delaying HTTP responses should be listening at port 8002. I used a Mozilla Vaurien in front of my local Nginx to introduce delays. The previously mentioned README.rst file has instructions for running a Vaurien proxy.
+ERROR
+Use http://localhost:8003/flags; a proxy introducing HTTP errors and delaying responses should be installed at port 8003. I used a different Vaurien configuration for this.
+
+    The LOCAL option only works if you configure and start a local HTTP server on port 8001. The DELAY and ERROR options require proxies listening on ports 8002 and 8003. Configuring Nginx and Mozilla Vaurien to enable these options is explained in the 17-futures/countries/README.rst file in the Fluent Python code repository on GitHub.
+
+[6] Before configuring Cloudflare, I got HTTP 503 errors—Service Temporarily Unavailable—when testing the scripts with a few dozen concurrent requests on my inexpensive shared host account. Now those errors are gone.
+
+By default, each flags2 script will fetch the flags of the 20 most populous countries from the LOCAL server (http://localhost:8001/flags) using a default number of concurrent connections, which varies from script to script. Example 17-9 shows a sample run of the flags2_sequential.py script using all defaults.
+
+Example 17-9. Running flags2_sequential.py with all defaults: LOCAL site, top-20 flags, 1 concurrent connection
+```python
+$ python3 flags2_sequential.py
+LOCAL site: http://localhost:8001/flags
+Searching for 20 flags: from BD to VN
+1 concurrent connection will be used.
+--------------------
+20 flags downloaded.
+Elapsed time: 0.10s
+```
+
+You can select which flags will be downloaded in several ways. Example 17-10 shows how to download all flags with country codes starting with the letters A, B, or C.
+
+Example 17-10. Run flags2_threadpool.py to fetch all flags with country codes prefixes A, B, or C from DELAY server
+```python
+$ python3 flags2_threadpool.py -s DELAY a b c
+DELAY site: http://localhost:8002/flags
+Searching for 78 flags: from AA to CZ
+30 concurrent connections will be used.
+--------------------
+43 flags downloaded.
+35 not found.
+Elapsed time: 1.72s
+```
+
+Regardless of how the country codes are selected, the number of flags to fetch can be limited with the -l/--limit option. Example 17-11 demonstrates how to run exactly 100 requests, combining the -a option to get all flags with -l 100.
+
+Example 17-11. Run flags2_asyncio.py to get 100 flags (-al 100) from the ERROR server, using 100 concurrent requests (-m 100)
+```python
+$ python3 flags2_asyncio.py -s ERROR -al 100 -m 100
+ERROR site: http://localhost:8003/flags
+Searching for 100 flags: from AD to LK
+100 concurrent connections will be used.
+--------------------
+73 flags downloaded.
+27 errors.
+Elapsed time: 0.64s
+```
+That’s the user interface of the flags2 examples. Let’s see how they are implemented.
+
+
+## Error Handling in the flags2 Examples
+
+
+
+
+
 
 
 
