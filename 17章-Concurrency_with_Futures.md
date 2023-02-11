@@ -597,25 +597,33 @@ As mentioned, the scripts in “Example: Web Downloads in Three Styles” on pag
 In order to test the handling of a variety of error conditions, I created the flags2 examples:
     为了测试对各种错误情况的处理，我创建了flags示例：
 
-flags2_common.py
-    This module contains common functions and settings used by all flags2 examples, including a main function, which takes care of command-line parsing, timing, and reporting results. This is really support code, not directly relevant to the subject of this chapter, so the source code is in Appendix A, Example A-10.
-    该模块包含了用于所有flags2示例的common方法与设置，包含一个main方法，负责命令行的解析，计时以及报告结果。这只是辅助代码，与本章主题没有直接关系，所以源码放置于附录A，示例A-10。
-flags2_sequential.py
-    A sequential HTTP client with proper error handling and progress bar display. Its download_one function is also used by flags2_threadpool.py.
-flags2_threadpool.py
-    Concurrent HTTP client based on futures.ThreadPoolExecutor to demonstrate error handling and integration of the progress bar.
-flags2_asyncio.py
-    Same functionality as previous example but implemented with asyncio and aiohttp. This will be covered in “Enhancing the asyncio downloader Script” on page 554, in Chapter 18.
-
+flags2_common.py  
+    This module contains common functions and settings used by all flags2 examples, including a main function, which takes care of command-line parsing, timing, and reporting results. This is really support code, not directly relevant to the subject of this chapter, so the source code is in Appendix A, Example A-10.  
+    该模块包含了用于所有flags2示例的common方法与设置，包含一个main方法，负责命令行的解析，计时以及报告结果。这只是辅助代码，与本章主题没有直接关系，所以源码放置于附录A，示例A-10。  
+flags2_sequential.py  
+    A sequential HTTP client with proper error handling and progress bar display. Its download_one function is also used by flags2_threadpool.py.  
+    顺序HTTP客户端，包含合适的错误处理与进度条显示。其中download_one方法也用于flags2_threadpool.py。
+flags2_threadpool.py  
+    Concurrent HTTP client based on futures.ThreadPoolExecutor to demonstrate error handling and integration of the progress bar.  
+    以futures.ThreadPoolExecutor为基础的并发HTTP客户端，用于演示错误处理与进度条。
+flags2_asyncio.py  
+    Same functionality as previous example but implemented with asyncio and aiohttp. This will be covered in “Enhancing the asyncio downloader Script” on page 554, in Chapter 18.  
+    功能与上面的例子一样，但基于asyncio与aiohttp。将在554页的18章“升级asyncio下载器及脚本”介绍。
 
     Be Careful When Testing Concurrent Clients  
-    When testing concurrent HTTP clients on public HTTP servers, you may generate many requests persecond, and that’s how denial of-service (DoS) attacks are made. We don’t want to attack anyone, just learn how to build high-performance clients. Carefully throttle your clients when hitting public servers. For high concurrency experiments, set up a local HTTP server for testing. Instructions for doing it are in the README.rst file in the 17-futures/countries/ directory of the Fluent Python code repository.
+    When testing concurrent HTTP clients on public HTTP servers, you may generate many requests persecond, and that’s how denial of-service (DoS) attacks are made. We don’t want to attack anyone, just learn how to build high-performance clients. Carefully throttle your clients when hitting public servers. For high concurrency experiments, set up a local HTTP server for testing. Instructions for doing it are in the README.rst file in the 17-futures/countries/ directory of the Fluent Python code repository.  
+    测试并发客户端需注意：  
+    当在公用HTTP服务上测试并发HTTP客户端时，你可能每秒生成许多请求，这会形成拒绝服务攻击（Dos）。我们只是想要了解高性能客户端的构造原理，并不想造成任何攻击。所以当访问公用服务时请小心限制你的客户端。对于并发的实验来说，建立一个本地HTTP服务用于测试。关于这部分的介绍在Fluent Python代码库17-futures/countries/目录下的README.rst文件中。
 
-The most visible feature of the flags2 examples is that they have an animated, text mode progress bar implemented with the TQDM package. I posted a 108s video on YouTube to show the progress bar and contrast the speed of the three flags2 scripts. In the video, I start with the sequential download, but I interrupt it after 32s because it was going to take more than 5 minutes to hit on 676 URLs and get 194 flags; I then run the threaded and asyncio scripts three times each, and every time they complete the job in 6s or less (i.e., more than 60 times faster). Figure 17-1 shows two screenshots: during and after running flags2_threadpool.py.
 
-[Figure 17-1]
+The most visible feature of the flags2 examples is that they have an animated, text mode progress bar implemented with the TQDM package. I posted a 108s video on YouTube to show the progress bar and contrast the speed of the three flags2 scripts. In the video, I start with the sequential download, but I interrupt it after 32s because it was going to take more than 5 minutes to hit on 676 URLs and get 194 flags; I then run the threaded and asyncio scripts three times each, and every time they complete the job in 6s or less (i.e., more than 60 times faster). Figure 17-1 shows two screenshots: during and after running flags2_threadpool.py.  
+    flags2示例最直观的特点是他通过TQDM库建立了一个动画的，文本模式进度条。我在YouTube上传了一段108秒的视频，来展示这个进度条，并对比了flags2的三个脚本的运行速度。在该视频中，以顺序下载开头，但32秒后我就将他中断了，因为他会运行超过5分钟并访问676次URL获取194张flag；之后运行了线程式与asyncio的脚本各三次，他们每次的完成用时都在6秒或更少（也就是说快了60多倍）。图示17-1的两张截图：运行flags2_threadpool.py的期间与结束。
+
+[Figure 17-1]  
 Figure 17-1. Top-left: flags2_threadpool.py running with live progress bar generated by tqdm; bottom-right: same terminal window after the script is finished.  
-TQDM is very easy to use, the simplest example appears in an animated .gif in the project’s README.md. If you type the following code in the Python console after installing the tqdm package, you’ll see an animated progress bar were the comment is:
+    图示17-1。左上角：flags2_threadpool.py运行中由tqdm生成的动态进度条；右下方：脚本运行结束后，相同的终端窗口。
+TQDM is very easy to use, the simplest example appears in an animated .gif in the project’s README.md. If you type the following code in the Python console after installing the tqdm package, you’ll see an animated progress bar were the comment is:  
+    TQDM很简单，最简单的实例在README.md中的动画.gif中。在安装tqdm库后，如果你在Python控制台输入下列代码，你会在注释位置看到一个动态的进度条：
 ```python
 
 >>> import time
@@ -625,10 +633,13 @@ TQDM is very easy to use, the simplest example appears in an animated .gif in th
 ...
 >>> # -> progress bar will appear here <-
 ```
-Besides the neat effect, the tqdm function is also interesting conceptually: it consumes any iterable and produces an iterator which, while it’s consumed, displays the progress bar and estimates the remaining time to complete all iterations. To compute that estimate, tqdm needs to get an iterable that has a len, or receive as a second argument the expected number of items. Integrating TQDM with our flags2 examples provide an opportunity to look deeper into how the concurrent scripts actually work, by forcing us to use the futures.as_completed and the asyncio.as_completed functions so that tqdm can display progress as each future is completed.
-The other feature of the flags2 example is a command-line interface. All three scripts accept the same options, and you can see them by running any of the scripts with the -h option. Example 17-8 shows the help text.
+Besides the neat effect, the tqdm function is also interesting conceptually: it consumes any iterable and produces an iterator which, while it’s consumed, displays the progress bar and estimates the remaining time to complete all iterations. To compute that estimate, tqdm needs to get an iterable that has a len, or receive as a second argument the expected number of items. Integrating TQDM with our flags2 examples provide an opportunity to look deeper into how the concurrent scripts actually work, by forcing us to use the futures.as_completed and the asyncio.as_completed functions so that tqdm can display progress as each future is completed.  
+    除了整洁的效果以外，tqdm函数在概念上也很有趣：他消费任意可迭代对象并生成一个带带器，当他被消费时，显示出进度条并预估出完成所有迭代需要的剩余时间。为了计算出预估时间，tqdm需要获取到具有len的可迭代对象，或是作为第二参数接收的预期项数。将TQDM与我们的flags2整合，可以让我们更深入看到并发脚本实际是如何工作的，通过强迫使用futures.as_completed和asyncio.as_completed方法，以便tqdm可以在每个future结束时显示进度。
 
-Example 17-8. Help screen for the scripts in the flags2 series
+The other feature of the flags2 example is a command-line interface. All three scripts accept the same options, and you can see them by running any of the scripts with the -h option. Example 17-8 shows the help text.  
+    flags2示例另外的特点在于他是一个命令行接口。所有三个脚本接收相同的选项，你可以通过运行带有-h选项的脚本来查看他们。示例17-8是help内容。
+
+Example 17-8. Help screen for the scripts in the flags2 series  
 ```python
 $ python3 flags2_threadpool.py -h
 usage: flags2_threadpool.py [-h] [-a] [-e] [-l N] [-m CONCURRENT] [-s LABEL]
@@ -650,27 +661,28 @@ optional arguments:
     -v, --verbose output detailed progress info
 ```
 
-All arguments are optional. The most important arguments are discussed next.
+All arguments are optional. The most important arguments are discussed next.  
+    所有参数都是可选的。下面讨论最重要的参数。
 
-One option you can’t ignore is -s/--server: it lets you choose which HTTP server and base URL will be used in the test. You can pass one of four strings to determine where the script will look for the flags (the strings are case insensitive):
+One option you can’t ignore is -s/--server: it lets you choose which HTTP server and base URL will be used in the test. You can pass one of four strings to determine where the script will look for the flags (the strings are case insensitive):  
+    你不能忽视一个参数是-s/--server：这让你选择测试用到的HTTP服务以及基础URL。你可以传入四个字符串中的一个来决定脚本去哪里寻找flags（字符串不区分大小写）：
 
-
-LOCAL
-Use http://localhost:8001/flags; this is the default. You should configure a local HTTP server to answer at port 8001. I used Nginx for my tests. The README.rst file for this chapter’s example code explains how to install and configure it.
-REMOTE
-Use http://flupy.org/data/flags; that is a public website owned by me, hosted on a shared server. Please do not pound it with too many concurrent requests. The flupy.org domain is handled by a free account on the Cloudflare CDN so you may notice that the first downloads are slower, but they get faster when the CDN cache warms up.[6]
-DELAY
-Use http://localhost:8002/flags; a proxy delaying HTTP responses should be listening at port 8002. I used a Mozilla Vaurien in front of my local Nginx to introduce delays. The previously mentioned README.rst file has instructions for running a Vaurien proxy.
-ERROR
-Use http://localhost:8003/flags; a proxy introducing HTTP errors and delaying responses should be installed at port 8003. I used a different Vaurien configuration for this.
+LOCAL  
+Use http://localhost:8001/flags; this is the default. You should configure a local HTTP server to answer at port 8001. I used Nginx for my tests. The README.rst file for this chapter’s example code explains how to install and configure it.  
+REMOTE  
+Use http://flupy.org/data/flags; that is a public website owned by me, hosted on a shared server. Please do not pound it with too many concurrent requests. The flupy.org domain is handled by a free account on the Cloudflare CDN so you may notice that the first downloads are slower, but they get faster when the CDN cache warms up.[6]  
+DELAY  
+Use http://localhost:8002/flags; a proxy delaying HTTP responses should be listening at port 8002. I used a Mozilla Vaurien in front of my local Nginx to introduce delays. The previously mentioned README.rst file has instructions for running a Vaurien proxy.  
+ERROR  
+Use http://localhost:8003/flags; a proxy introducing HTTP errors and delaying responses should be installed at port 8003. I used a different Vaurien configuration for this.  
 
     The LOCAL option only works if you configure and start a local HTTP server on port 8001. The DELAY and ERROR options require proxies listening on ports 8002 and 8003. Configuring Nginx and Mozilla Vaurien to enable these options is explained in the 17-futures/countries/README.rst file in the Fluent Python code repository on GitHub.
 
-[6] Before configuring Cloudflare, I got HTTP 503 errors—Service Temporarily Unavailable—when testing the scripts with a few dozen concurrent requests on my inexpensive shared host account. Now those errors are gone.
+[6] Before configuring Cloudflare, I got HTTP 503 errors—Service Temporarily Unavailable—when testing the scripts with a few dozen concurrent requests on my inexpensive shared host account. Now those errors are gone.  
 
-By default, each flags2 script will fetch the flags of the 20 most populous countries from the LOCAL server (http://localhost:8001/flags) using a default number of concurrent connections, which varies from script to script. Example 17-9 shows a sample run of the flags2_sequential.py script using all defaults.
+By default, each flags2 script will fetch the flags of the 20 most populous countries from the LOCAL server (http://localhost:8001/flags) using a default number of concurrent connections, which varies from script to script. Example 17-9 shows a sample run of the flags2_sequential.py script using all defaults.  
 
-Example 17-9. Running flags2_sequential.py with all defaults: LOCAL site, top-20 flags, 1 concurrent connection
+Example 17-9. Running flags2_sequential.py with all defaults: LOCAL site, top-20 flags, 1 concurrent connection  
 ```python
 $ python3 flags2_sequential.py
 LOCAL site: http://localhost:8001/flags
@@ -681,9 +693,9 @@ Searching for 20 flags: from BD to VN
 Elapsed time: 0.10s
 ```
 
-You can select which flags will be downloaded in several ways. Example 17-10 shows how to download all flags with country codes starting with the letters A, B, or C.
+You can select which flags will be downloaded in several ways. Example 17-10 shows how to download all flags with country codes starting with the letters A, B, or C.  
 
-Example 17-10. Run flags2_threadpool.py to fetch all flags with country codes prefixes A, B, or C from DELAY server
+Example 17-10. Run flags2_threadpool.py to fetch all flags with country codes prefixes A, B, or C from DELAY server  
 ```python
 $ python3 flags2_threadpool.py -s DELAY a b c
 DELAY site: http://localhost:8002/flags
@@ -695,9 +707,9 @@ Searching for 78 flags: from AA to CZ
 Elapsed time: 1.72s
 ```
 
-Regardless of how the country codes are selected, the number of flags to fetch can be limited with the -l/--limit option. Example 17-11 demonstrates how to run exactly 100 requests, combining the -a option to get all flags with -l 100.
+Regardless of how the country codes are selected, the number of flags to fetch can be limited with the -l/--limit option. Example 17-11 demonstrates how to run exactly 100 requests, combining the -a option to get all flags with -l 100.  
 
-Example 17-11. Run flags2_asyncio.py to get 100 flags (-al 100) from the ERROR server, using 100 concurrent requests (-m 100)
+Example 17-11. Run flags2_asyncio.py to get 100 flags (-al 100) from the ERROR server, using 100 concurrent requests (-m 100)  
 ```python
 $ python3 flags2_asyncio.py -s ERROR -al 100 -m 100
 ERROR site: http://localhost:8003/flags
@@ -708,7 +720,7 @@ Searching for 100 flags: from AD to LK
 27 errors.
 Elapsed time: 0.64s
 ```
-That’s the user interface of the flags2 examples. Let’s see how they are implemented.
+That’s the user interface of the flags2 examples. Let’s see how they are implemented.  
 
 
 ## Error Handling in the flags2 Examples
