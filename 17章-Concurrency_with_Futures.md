@@ -669,18 +669,25 @@ One option you can’t ignore is -s/--server: it lets you choose which HTTP serv
 
 LOCAL  
 Use http://localhost:8001/flags; this is the default. You should configure a local HTTP server to answer at port 8001. I used Nginx for my tests. The README.rst file for this chapter’s example code explains how to install and configure it.  
+    使用http://localhost:8001/flags；默认方式。你应该配置一个本地HTTP服务来响应8001端口。我是用Nginx来测试。本章示例代码的README.rst文件展示了安装和配置的方式。
 REMOTE  
 Use http://flupy.org/data/flags; that is a public website owned by me, hosted on a shared server. Please do not pound it with too many concurrent requests. The flupy.org domain is handled by a free account on the Cloudflare CDN so you may notice that the first downloads are slower, but they get faster when the CDN cache warms up.[6]  
+    使用http://flupy.org/data/flags，只是我建立的公共网站，主机位于一个共享服务器。请不要发太多并发请求。flupy.org域名是由Cloudflare CDN的免费账户处理的，所以你可能需要注意第一次下载会较慢，但CDN缓存预热后会快起来。
 DELAY  
 Use http://localhost:8002/flags; a proxy delaying HTTP responses should be listening at port 8002. I used a Mozilla Vaurien in front of my local Nginx to introduce delays. The previously mentioned README.rst file has instructions for running a Vaurien proxy.  
+    使用 http://localhost:8002/flags；一个需要监听8002端口的代理延迟HTTP。我在本地Nginx之前使用了Mozilla Vaurien来引入延迟。前面提到的README.rst文件有运行Vaurien代理的说明。
 ERROR  
 Use http://localhost:8003/flags; a proxy introducing HTTP errors and delaying responses should be installed at port 8003. I used a different Vaurien configuration for this.  
+    使用http://localhost:8003/flags；应该在8003端口安装一个引入HTTP错误与延迟响应的代理。
 
-    The LOCAL option only works if you configure and start a local HTTP server on port 8001. The DELAY and ERROR options require proxies listening on ports 8002 and 8003. Configuring Nginx and Mozilla Vaurien to enable these options is explained in the 17-futures/countries/README.rst file in the Fluent Python code repository on GitHub.
+    The LOCAL option only works if you configure and start a local HTTP server on port 8001. The DELAY and ERROR options require proxies listening on ports 8002 and 8003. Configuring Nginx and Mozilla Vaurien to enable these options is explained in the 17-futures/countries/README.rst file in the Fluent Python code repository on GitHub.  
+    只有如果你在8001端口配置并启动了一个本地HTTP服务，才能使用LOCAL选项。DELAY和ERROR选项扥别需要有监听8002和8003端口的代理。为了实现这些选项需要配置Nginx和Mozilla Vaurien，在GitHub库的17-futures/countries/README.rst中有解释。
 
 [6] Before configuring Cloudflare, I got HTTP 503 errors—Service Temporarily Unavailable—when testing the scripts with a few dozen concurrent requests on my inexpensive shared host account. Now those errors are gone.  
+    在配置Cloudflare之前，当在我的脸颊共享主机账户上调用几十个并发请求测试脚本，收到了HTTP 503报错——服务暂不可用。现在没有这些报错了。
 
 By default, each flags2 script will fetch the flags of the 20 most populous countries from the LOCAL server (http://localhost:8001/flags) using a default number of concurrent connections, which varies from script to script. Example 17-9 shows a sample run of the flags2_sequential.py script using all defaults.  
+    默认情况下，每个flag2脚本将使用默认并发连接数，从LOCAL服务上获取20个人口最多的国家国旗，连接数由脚本决定。示例17-9展示了flags2_sequential.py脚本使用所有默认值的一次简单运行。
 
 Example 17-9. Running flags2_sequential.py with all defaults: LOCAL site, top-20 flags, 1 concurrent connection  
 ```python
