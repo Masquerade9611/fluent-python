@@ -690,6 +690,7 @@ By default, each flags2 script will fetch the flags of the 20 most populous coun
     默认情况下，每个flag2脚本将使用默认并发连接数，从LOCAL服务上获取20个人口最多的国家国旗，连接数由脚本决定。示例17-9展示了flags2_sequential.py脚本使用所有默认值的一次简单运行。
 
 Example 17-9. Running flags2_sequential.py with all defaults: LOCAL site, top-20 flags, 1 concurrent connection  
+    示例17-9. 使用默认参数运行flags2_squential.py：LOCAL site，前20个国旗，一个并发连接
 ```python
 $ python3 flags2_sequential.py
 LOCAL site: http://localhost:8001/flags
@@ -701,8 +702,10 @@ Elapsed time: 0.10s
 ```
 
 You can select which flags will be downloaded in several ways. Example 17-10 shows how to download all flags with country codes starting with the letters A, B, or C.  
+    你可以用多种方式选择要下载的国旗。示例17-10介绍了如何下载以字母A，B，C开头的所有国家的国旗。
 
 Example 17-10. Run flags2_threadpool.py to fetch all flags with country codes prefixes A, B, or C from DELAY server  
+    示例17-10. 通过运行flags2_threadpool.py从DELAY服务中获取国家名前缀为A/B/C的所有国旗
 ```python
 $ python3 flags2_threadpool.py -s DELAY a b c
 DELAY site: http://localhost:8002/flags
@@ -715,8 +718,10 @@ Elapsed time: 1.72s
 ```
 
 Regardless of how the country codes are selected, the number of flags to fetch can be limited with the -l/--limit option. Example 17-11 demonstrates how to run exactly 100 requests, combining the -a option to get all flags with -l 100.  
+    不管国家是以何种方式选择的，获取的国旗数量将被参数选项-l/--limit所限制。示例17-11演示了通过结合参数-a（获取所有flag）和-l 100，准确发送100次请求的方法。
 
 Example 17-11. Run flags2_asyncio.py to get 100 flags (-al 100) from the ERROR server, using 100 concurrent requests (-m 100)  
+    示例17-11. 运行flags2_asyncio.py从ERROR服务通过100个并发请求（-m 100）获取100个国旗（-al 100）
 ```python
 $ python3 flags2_asyncio.py -s ERROR -al 100 -m 100
 ERROR site: http://localhost:8003/flags
@@ -728,6 +733,7 @@ Searching for 100 flags: from AD to LK
 Elapsed time: 0.64s
 ```
 That’s the user interface of the flags2 examples. Let’s see how they are implemented.  
+    这是flags2示例的使用接口，我们来看下实现方法。
 
 
 ## Error Handling in the flags2 Examples
