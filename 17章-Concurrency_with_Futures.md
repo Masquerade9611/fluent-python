@@ -737,9 +737,230 @@ That’s the user interface of the flags2 examples. Let’s see how they are imp
 
 
 ## Error Handling in the flags2 Examples
+## flags2示例中的错误处理
+
+The common strategy adopted in all three examples to deal with HTTP errors is that 404 errors (Not Found) are handled by the function in charge of downloading a single file (download_one). Any other exception propagates to be handled by the download_many function.  
+    所有三种示例中为了处理HTTP error共同采用的策略是，404 errors(Not Found)被负责下载单独文件的函数（download_one）所处理。任何其余异常都将由download_many函数处理。
+
+Again, we’ll start by studying the sequential code, which is easier to follow—and mostly reused by the thread pool script. Example 17-12 shows the functions that perform the actual downloads in the flags2_sequential.py and flags2_threadpool.py scripts.  
+    我们从sequential的代码开始研究，这部分相对容易理解，同时大部分线程池脚本重用。示例17-12展示了在flags2_sequential.py和flags2_threadpool.py脚本中执行实际的下载。
+
+Example 17-12. flags2_sequential.py: basic functions in charge of downloading; both are reused in flags2_threadpool.py  
+    示例17-12. flags2_sequential.py：负责下载的基本方法；都被复用于flags2_threadpool.py
+```python
+
+def get_flag(base_url, cc):
+    url = '{}/{cc}/{cc}.gif'.format(base_url, cc=cc.lower())
+    resp = requests.get(url)
+    if resp.status_code != 200:  # 1
+        resp.raise_for_status()
+    return resp.content
 
 
+def download_one(cc, base_url, verbose=False):
+    try:
+        image = get_flag(base_url, cc)
+    except requests.exceptions.HTTPError as exc:  # 2
+        res = exc.response
+        if res.status_code == 404:
+            status = HTTPStatus.not_found  # 3
+            msg = 'not found'
+        else:
+            raise
+    else:  # 4
+        save_flag(image, cc.lower() + '.gif')
+        status = HTTPStatus.ok
+        msg = 'OK'
 
+    if verbose:  # 5 
+        print(cc, msg)
+
+    return Result(status, cc)  # 6
+
+```
+
+1. get_flag does no error handling, it uses requests.Response.raise_for_status to raise an exception for any HTTP code other than 200.  
+    get_flag没有处理error，在HTTP code不为200时，用requests.Response.raise_for_status来抛出一个异常。
+2. download_one catches requests.exceptions.HTTPError to handle HTTP code 404 specifically…  
+    download_one捕捉了requests.exceptions.HTTPError来特殊处理404
+3. …by setting its local status to HTTPStatus.not_found; HTTPStatus is an Enum imported from flags2_common (Example A-10).  
+    通过将本地状态设置为HTTPStatus.not_found；HTTPStatus是从flags2_common导入的一个枚举。
+4. Any other HTTPError exception is re-raised; other exceptions will just propagate to the caller.  
+    其余的HTTPError异常会被重新抛出；其他异常只会传播给调用者。
+5. If the -v/--verbose command-line option is set, the country code and status message will be displayed; this how you’ll see progress in the verbose mode.  
+    如果设置了-v/--verbose命令行选项，将显示出国家代码和状态信息；这就是在verbose模式下可以看到进度的原因。
+6. The Result namedtuple returned by download_one will have a status field with a value of HTTPStatus.not_found or HTTPStatus.ok.  
+    download_one返回的Result命名元组包含一个status字段，值可能为HTTPStatus.not_found或HTTPStatus.ok。
+
+Example 17-13 lists the sequential version of the download_many function. This code is straightforward, but its worth studying to contrast with the concurrent versions coming up. Focus on how it reports progress, handles errors, and tallies downloads.  
+    例17-13列出了download_many函数的顺序版本。代码很简单，但是为了与即将介绍的并发版本对比，值得研究一下。主要留意他是如何报告进度，处理error与统计下载量的。
+
+Example 17-13. flags2_sequential.py: the sequential implementation of download_many  
+    例17-13. flags2_sequential.py：download_many的顺序实现
+
+```python
+def download_many(cc_list, base_url, verbose, max_req):
+    counter = collections.Counter()  # 1
+    cc_iter = sorted(cc_list)  # 2
+    if not verbose:
+        cc_iter = tqdm.tqdm(cc_iter)  # 3
+    for cc in cc_iter:  # 4
+        try:
+            res = download_one(cc, base_url, verbose)  # 5
+        except requests.exceptions.HTTPError as exc:  # 6
+            error_msg = 'HTTP error {res.status_code} - {res.reason}'
+            error_msg = error_msg.format(res=exc.response)
+        except requests.exceptions.ConnectionError as exc:  # 7
+            error_msg = 'Connection error'
+        else:  # 8
+            error_msg = ''
+            status = res.status
+    if error_msg:
+        status = HTTPStatus.error  # 9
+    counter[status] += 1  # 10
+    if verbose and error_msg:  # 11
+        print('*** Error for {}: {}'.format(cc, error_msg))
+    
+    return counter  # 12
+```
+
+1. This Counter will tally the different download outcomes: HTTPStatus.ok, HTTPStatus.not_found, or HTTPStatus.error.
+2. cc_iter holds the list of the country codes received as arguments, ordered alphabetically.
+3. If not running in verbose mode, cc_iter is passed to the tqdm function, which will return an iterator that yields the items in cc_iter while also displaying the animated progress bar.
+4. This for loop iterates over cc_iter and…
+5. …performs the download by successive calls to download_one.
+6. HTTP-related exceptions raised by get_flag and not handled by download_one are handled here.
+7. Other network-related exceptions are handled here. Any other exception will abort the script, because the flags2_common.main function that calls download_many has no try/except.
+8. If no exception escaped download_one, then the status is retrieved from the HTTPStatus namedtuple returned by download_one.
+9. If there was an error, set the local status accordingly.
+10. Increment the counter by using the value of the HTTPStatus Enum as key.
+11. If running in verbose mode, display the error message for the current country code, if any.
+12. Return the counter so that the main function can display the numbers in its final report.
+
+We’ll now study the refactored thread pool example, flags2_threadpool.py.
+
+## Using futures.as_completed
+In order to integrate the TQDM progress bar and handle errors on each request, the flags2_threadpool.py script uses futures.ThreadPoolExecutor with the futures.as_completed function we’ve already seen. Example 17-14 is the full listing of flags2_threadpool.py. Only the download_many function is implemented; the other functions are reused from the flags2_common and flags2_sequential modules. 
+
+Example 17-14. flags2_threadpool.py: full listing
+```python
+import collections
+from concurrent import futures
+import requests
+import tqdm  # 1
+
+from flags2_common import main, HTTPStatus  # 2
+from flags2_sequential import download_one  # 3
+
+DEFAULT_CONCUR_REQ = 30  # 4
+MAX_CONCUR_REQ = 1000  # 5
+
+
+def download_many(cc_list, base_url, verbose, concur_req):
+    counter = collections.Counter()
+    with futures.ThreadPoolExecutor(max_workers=concur_req) as executor:  # 6
+        to_do_map = {}  # 7
+        for cc in sorted(cc_list):  # 8
+            future = executor.submit(download_one,
+                            cc, base_url, verbose)  # 9
+            to_do_map[future] = cc  # 10
+        done_iter = futures.as_completed(to_do_map)  # 11
+        if not verbose:
+            done_iter = tqdm.tqdm(done_iter, total=len(cc_list))  # 12
+        for future in done_iter:  # 13
+            try:
+                res = future.result()  # 14
+            except requests.exceptions.HTTPError as exc:  # 15
+                error_msg = 'HTTP {res.status_code} - {res.reason}'
+                error_msg = error_msg.format(res=exc.response)
+            except requests.exceptions.ConnectionError as exc:
+                error_msg = 'Connection error'
+            else:
+                error_msg = ''
+                status = res.status
+
+            if error_msg:
+                status = HTTPStatus.error
+            counter[status] += 1
+            if verbose and error_msg:
+                cc = to_do_map[future]  # 16
+                print('*** Error for {}: {}'.format(cc, error_msg))
+
+    return counter
+
+
+if __name__ == '__main__':
+    main(download_many, DEFAULT_CONCUR_REQ, MAX_CONCUR_REQ)
+
+```
+
+1. Import the progress-bar display library.
+2. Import one function and one Enum from the flags2_common module.
+3. Reuse the donwload_one from flags2_sequential (Example 17-12).
+4. If the -m/--max_req command-line option is not given, this will be the maximum number of concurrent requests, implemented as the size of the thread pool; the actual number may be smaller, if the number of flags to download is smaller.
+5. MAX_CONCUR_REQ caps the maximum number of concurrent requests regardless of the number of flags to download or the -m/--max_req command-line option; it’s a safety precaution.
+6. Create the executor with max_workers set to concur_req, computed by the main function as the smaller of: MAX_CONCUR_REQ, the length of cc_list, and the value of the -m/--max_req command-line option. This avoids creating more threads than necessary.
+7. This dict will map each Future instance—representing one download—with the respective country code for error reporting.
+8. Iterate overthe list of country codesin alphabetical order. The order of the results will depend on the timing of the HTTP responses more than anything, but if the size of the thread pool (given by concur_req) is much smaller than len(cc_list), you may notice the downloads batched alphabetically.
+9. Each call to executor.submit schedules the execution of one callable and returns a Future instance. The first argument is the callable, the rest are the arguments it will receive.
+10. Store the future and the country code in the dict.
+11. futures.as_completed returns an iterator that yields futures as they are done.
+12. If not in verbose mode, wrap the result of as_completed with the tqdm function to display the progress bar; because done_iter has no len, we must tell tqdm what is the expected number of items as the total= argument, so tqdm can estimate the work remaining.
+13. Iterate over the futures as they are completed.
+14. Calling the result method on a future either returns the value returned by the callable, orraises whatever exception was caught when the callable was executed.
+15. This method may block waiting for a resolution, but not in this example because as_completed only returns futures that are done.
+16. Handle the potential exceptions; the rest of this function is identical to the sequential version of download_many (Example 17-13), except for the next callout. To provide context for the error message, retrieve the country code from the to_do_map using the current future as key. This was not necessary in the sequential version because we were iterating over the list of country codes, so we had the current cc; here we are iterating over the futures.
+
+Example 17-14 uses an idiom that’s very useful with futures.as_completed: building a dict to map each future to other data that may be useful when the future is completed. Here the to_do_map maps each future to the country code assigned to it. This makes it easy to do follow-up processing with the result of the futures, despite the fact that they are produced out of order.  
+Python threads are well suited for I/O-intensive applications, and the concurrent.futures package makes them trivially simple to use for certain use cases. This concludes our basic introduction to concurrent.futures. Let’s now discuss alternatives for when ThreadPoolExecutor or ProcessPoolExecutor are not suitable.  
+
+
+## Threading and Multiprocessing Alternatives
+Python has supported threads since its release 0.9.8 (1993); concurrent.futures is just the latest way of using them. In Python 3, the original thread module was deprecated in favor of the higher-level threading module.[7] If futures.ThreadPoolExecutor is not flexible enough for a certain job, you may need to build your own solution out of basic threading components such as Thread, Lock, Semaphore, etc.—possibly using the thread-safe queues of the queuemodule for passing data between threads. Those moving parts are encapsulated by futures.ThreadPoolExecutor.  
+
+For CPU-bound work, you need to sidestep the GIL by launching multiple processes. The futures.ProcessPoolExecutor is the easiest way to do it. But again, if your use case is complex, you’ll need more advanced tools. The multiprocessing package emulates the threading API but delegates jobs to multiple processes. For simple programs, multiprocessing can replace threading with few changes. But multiprocessing also offers facilities to solve the biggest challenge faced by collaborating processes: how to pass around data.  
+
+[7]. The threading module has been available since Python 1.5.1 (1998), yet some insist on using the old thread module. In Python 3, it was renamed to _thread to highlight the fact that it’s just a low-level implementation detail, and shouldn’t be used in application code.
+
+
+# Chapter Summary
+We started the chapter by comparing two concurrent HTTP clients with a sequential one, demonstrating significant performance gains over the sequential script.  
+
+After studying the first example based on concurrent.futures, we took a closer look at future objects, either instances of concurrent.futures.Future, or asyncio.Future, emphasizing what these classes have in common (their differences will be emphasized in Chapter 18). We saw how to create futures by calling Executor.submit(…), and iterate over completed futures with concurrent.futures.as_completed(…).  
+
+Next, we saw why Python threads are well suited for I/O-bound applications, despite the GIL: every standard library I/O function written in C releases the GIL, so while a given thread is waiting for I/O, the Python scheduler can switch to another thread. We then discussed the use of multiple processes with the concurrent.futures.ProcessPoolExecutor class, to go around the GIL and use multiple CPU cores to run cryptographic algorithms, achieving speedups of more than 100% when using four workers.  
+
+In the following section, we took a close look at how the concurrent.futures.ThreadPoolExecutor works, with a didactic example launching tasks that did nothing for a few seconds, except displaying their status with a timestamp.  
+
+Next we went back to the flag downloading examples. Enhancing them with a progress bar and proper error handling prompted further exploration of the future.as_completed generator function showing a common pattern: storing futures in a dict to link further information to them when submitting, so that we can use that information when the future comes out of the as_completed iterator.  
+
+We concluded the coverage of concurrency with threads and processes with a brief reminder of the lower-level, but more flexible threading and multiprocessing modules, which represent the traditional way of leveraging threads and processes in Python. 
+
+
+## Further Reading
+## 延伸阅读
+
+The concurrent.futures package was contributed by Brian Quinlan, who presented it in a great talk titled “The Future Is Soon!” at PyCon Australia 2010. Quinlan’s talk has no slides; he shows what the library does by typing code directly in the Python console.  
+
+As a motivating example, the presentation features a short video with XKCD cartoonist/programmer Randall Munroe making an unintended DOS attack on Google Maps to build a colored map of driving times around his city. The formal introduction to the library is PEP 3148 - futures - execute computations asynchronously. In the PEP, Quinlan wrote that the concurrent.futures library was “heavily influenced by the Java java.util.concurrent package.”  
+
+Parallel Programming with Python (Packt), by Jan Palach, covers several tools for concurrent programming, including the concurrent.futures, threading, and multiprocessing modules. It goes beyond the standard library to discuss Celery, a task queue used to distribute work across threads and processes, even on different machines. In the Django community, Celery is probably the most widely used system to offload heavy tasks such as PDF generation to other processes, thus avoiding delays in producing an HTTP response.  
+
+In the Beazley and Jones Python Cookbook, 3E (O’Reilly) there are recipes using concurrent.futures starting with “Recipe 11.12. Understanding Event-Driven I/O.” “Recipe 12.7. Creating a Thread Pool” shows a simple TCP echo server, and “Recipe 12.8. Performing Simple Parallel Programming” offers a very practical example: analyzing a whole directory of gzip compressed Apache logfiles with the help of a ProcessPoolExecutor. For more about threads, the entire Chapter 12 of Beazley and Jones is great, with special mention to “Recipe 12.10. Defining an Actor Task,” which demonstrates the Actor model: a proven way of coordinating threads through message passing.  
+
+Brett Slatkin’s Effective Python (Addison-Wesley) has a multitopic chapter about concurrency, including coverage of coroutines, concurrent.futures with threads and processes, and the use of locks and queues for thread programming without the ThreadPoolExecutor.  
+
+High Performance Python (O’Reilly) by Micha Gorelick and Ian Ozsvald and The Python Standard Library by Example (Addison-Wesley), by Doug Hellmann, also cover threads and processes.  
+
+For a modern take on concurrency without threads or callbacks, Seven Concurrency Models in Seven Weeks, by Paul Butcher (Pragmatic Bookshelf) is an excellent read. I love its subtitle: “When Threads Unravel.” In that book, threads and locks are covered in Chapter 1, and the remaining six chapters are devoted to modern alternatives to concurrent programming, as supported by different languages. Python, Ruby, and JavaScript are not among them.  
+
+If you are intrigued about the GIL, start with the Python Library and Extension FAQ(“Can’t we get rid of the Global Interpreter Lock?”). Also worth reading are posts by Guido van Rossum and Jesse Noller (contributor of the multiprocessing package): “It isn’t Easy to Remove the GIL” and “Python Threads and the Global Interpreter Lock.” Finally, David Beazley has a detailed exploration on the inner workings of the GIL: “Understanding the Python GIL.”[8]  In slide #54 of the presentation, Beazley reports some alarming results, including a 20× increase in processing time for a particular benchmark with the new GIL algorithm introduced in Python 3.2. However, Beazley apparently used an empty while True: pass to simulate CPU-bound work, and that is not realistic. The issue is not significant with real workloads, according to a comment by Antoine Pitrou—who implemented the new GIL algorithm—in the bug report submitted by Beazley.  
+
+While the GIL is real problem and is not likely to go away soon, Jesse Noller and Richard Oudkerk contributed a library to make it easier to work around it in CPU-bound applications: the multiprocessing package, which emulates the threading API across processes, along with supporting infrastructure of locks, queues, pipes, shared memory,etc. The package was introduced in PEP 371 — Addition of the multiprocessing package to the standard library. The official documentation for the package is a 93 KB .rst file—that’s about 63 pages—making it one of the longest chapters in the Python standard library. Multiprocessing is the basis for the concurrent.futures.ProcessPoolExecutor.  
+
+For CPU- and data-intensive parallel processing, a new option with a lot of momentum in the big data community is the Apache Spark distributed computing engine, offering a friendly Python API and support for Python objects as data, as shown in their examples page.  
+
+Two elegant and super easy libraries for parallelizing tasks over processes are lelo by João S. O. Bueno and python-parallelize by Nat Pryce. The lelo package defines a @parallel decorator that you can apply to any function to magically make it unblocking: when you call the decorated function, its execution is started in another process. Nat Pryce’s python-parallelize package provides a parallelize generator that you can use to distribute the execution of a for loop over multiple CPUs. Both packages use the multiprocessing module under the covers.
 
 
 
