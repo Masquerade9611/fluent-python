@@ -825,19 +825,32 @@ def download_many(cc_list, base_url, verbose, max_req):
 ```
 
 1. This Counter will tally the different download outcomes: HTTPStatus.ok, HTTPStatus.not_found, or HTTPStatus.error.
+    Counter将记录不同的下载结果：HTTPStatus.ok，HTTPStatus.not_found或HTTPStatus.error。
 2. cc_iter holds the list of the country codes received as arguments, ordered alphabetically.
+    cc_iter保存了参数传入的国家码列表，以字母顺序排序。
 3. If not running in verbose mode, cc_iter is passed to the tqdm function, which will return an iterator that yields the items in cc_iter while also displaying the animated progress bar.
+    如果你以verbose模式运行，会将cc_iter传入tqdm方法，tqdm会返回出一个迭代器，产出cc_iter各项的同时也显示动态的进度条。
 4. This for loop iterates over cc_iter and…
+    该for循环遍历cc_iter，并且…
 5. …performs the download by successive calls to download_one.
+    通过调用download_one来执行下载。
 6. HTTP-related exceptions raised by get_flag and not handled by download_one are handled here.
+    HTTP相关的异常由get_flag抛出，同时在download_one未处理的部分将在这里处理。
 7. Other network-related exceptions are handled here. Any other exception will abort the script, because the flags2_common.main function that calls download_many has no try/except.
-8. If no exception escaped download_one, then the status is retrieved from the HTTPStatus namedtuple returned by download_one.
+    其它的网络相关异常在这里处理。而其余的异常将终止脚本，因为flags2_commom.main方法调用download_many时未使用try/except。
+8. If no exception escaped download_one, then the status is retrieved from the HTTPStatus namedtuple returned by download_one.  
+    如果没有异常从download_one逃离，那么status就是从download_one中返回的HTTPStatus命名元组接收。
 9. If there was an error, set the local status accordingly.
+    如果此处是error，设置相应的本地status。
 10. Increment the counter by using the value of the HTTPStatus Enum as key.
+    将HTTPStatus枚举作为key的value，填入至counter。
 11. If running in verbose mode, display the error message for the current country code, if any.
+    运行verbose模式时，如果有任何error，则显示当前国家码的错误信息。
 12. Return the counter so that the main function can display the numbers in its final report.
+    为了让main方法在其最后报告中显示数量，return出counter。
 
-We’ll now study the refactored thread pool example, flags2_threadpool.py.
+We’ll now study the refactored thread pool example, flags2_threadpool.py.  
+    现在我们来学习重构后的线程池示例，flags2_threadpool.py。
 
 ## Using futures.as_completed
 In order to integrate the TQDM progress bar and handle errors on each request, the flags2_threadpool.py script uses futures.ThreadPoolExecutor with the futures.as_completed function we’ve already seen. Example 17-14 is the full listing of flags2_threadpool.py. Only the download_many function is implemented; the other functions are reused from the flags2_common and flags2_sequential modules. 
