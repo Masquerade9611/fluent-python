@@ -853,7 +853,10 @@ We’ll now study the refactored thread pool example, flags2_threadpool.py.
     现在我们来学习重构后的线程池示例，flags2_threadpool.py。
 
 ## Using futures.as_completed
-In order to integrate the TQDM progress bar and handle errors on each request, the flags2_threadpool.py script uses futures.ThreadPoolExecutor with the futures.as_completed function we’ve already seen. Example 17-14 is the full listing of flags2_threadpool.py. Only the download_many function is implemented; the other functions are reused from the flags2_common and flags2_sequential modules. 
+## 使用futures.as_completed
+
+In order to integrate the TQDM progress bar and handle errors on each request, the flags2_threadpool.py script uses futures.ThreadPoolExecutor with the futures.as_completed function we’ve already seen. Example 17-14 is the full listing of flags2_threadpool.py. Only the download_many function is implemented; the other functions are reused from the flags2_common and flags2_sequential modules.  
+    为了在每一次请求上整合TQDM进度条与处理error，脚本flags2_threadpool.py使用了futures.ThreadPoolExecutor和我们已经见过的futures.as_completed。例17-14是flags_threadpool.py的完整列表。其中只实现download_many函数；其余函数都是复用于flags2_common和flags2_sequential模块。
 
 Example 17-14. flags2_threadpool.py: full listing
 ```python
@@ -908,13 +911,21 @@ if __name__ == '__main__':
 ```
 
 1. Import the progress-bar display library.
+    导入进度条显示库。
 2. Import one function and one Enum from the flags2_common module.
+    从flags2_common导入一个函数与Enum。
 3. Reuse the donwload_one from flags2_sequential (Example 17-12).
+    复用flags2_sequential中的download_one函数。
 4. If the -m/--max_req command-line option is not given, this will be the maximum number of concurrent requests, implemented as the size of the thread pool; the actual number may be smaller, if the number of flags to download is smaller.
+    如果命令行中未获取到-m/--max_req，该值即并发请求的最大数量，作为线程池的size使用；如果要下载的flag更少，该值的实际值会更小。
 5. MAX_CONCUR_REQ caps the maximum number of concurrent requests regardless of the number of flags to download or the -m/--max_req command-line option; it’s a safety precaution.
+    不管要下载多少flag或是-m/--max_req是多少，并发请求的最大数由MAX_CONCUR_REQ所限制；这是安全措施。
 6. Create the executor with max_workers set to concur_req, computed by the main function as the smaller of: MAX_CONCUR_REQ, the length of cc_list, and the value of the -m/--max_req command-line option. This avoids creating more threads than necessary.
+    创建executor，max_worker由concur_req传入值设置，由main函数计算出MAX_CONCUR_REQ，cc_list长度和-m/--max_req这三个中最小的值。这样避免创建多余的线程。
 7. This dict will map each Future instance—representing one download—with the respective country code for error reporting.
-8. Iterate overthe list of country codesin alphabetical order. The order of the results will depend on the timing of the HTTP responses more than anything, but if the size of the thread pool (given by concur_req) is much smaller than len(cc_list), you may notice the downloads batched alphabetically.
+    该字典将为每个Future实例（表示一次下载）匹配各自的国家码，用于报告error。
+8. Iterate over the list of country codes in alphabetical order. The order of the results will depend on the timing of the HTTP responses more than anything, but if the size of the thread pool (given by concur_req) is much smaller than len(cc_list), you may notice the downloads batched alphabetically.
+    以字母顺序遍历国家码列表。结果的顺序主要由HTTP响应时间决定，但是如果线程池的size比len(cc_list)
 9. Each call to executor.submit schedules the execution of one callable and returns a Future instance. The first argument is the callable, the rest are the arguments it will receive.
 10. Store the future and the country code in the dict.
 11. futures.as_completed returns an iterator that yields futures as they are done.
