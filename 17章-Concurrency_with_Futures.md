@@ -925,40 +925,64 @@ if __name__ == '__main__':
 7. This dict will map each Future instance—representing one download—with the respective country code for error reporting.
     该字典将为每个Future实例（表示一次下载）匹配各自的国家码，用于报告error。
 8. Iterate over the list of country codes in alphabetical order. The order of the results will depend on the timing of the HTTP responses more than anything, but if the size of the thread pool (given by concur_req) is much smaller than len(cc_list), you may notice the downloads batched alphabetically.
-    以字母顺序遍历国家码列表。结果的顺序主要由HTTP响应时间决定，但是如果线程池的size比len(cc_list)
+    以字母顺序遍历国家码列表。结果的顺序主要由HTTP响应时间决定，但是如果线程池的size（来自于concur_req）比len(cc_list)小，你可能会注意到下载顺序是按照字母顺序分批的。
 9. Each call to executor.submit schedules the execution of one callable and returns a Future instance. The first argument is the callable, the rest are the arguments it will receive.
+    executor.submit的每次调用会预定一个可调用对象的执行，并返回一个Future实例。第一个参数是可调用对象，其余为他接受的参数。
 10. Store the future and the country code in the dict.
+    将fucure和国家码的对应保存进字典。
 11. futures.as_completed returns an iterator that yields futures as they are done.
+    futures.as_completed返回一个迭代器，在他们结束时产出future。
 12. If not in verbose mode, wrap the result of as_completed with the tqdm function to display the progress bar; because done_iter has no len, we must tell tqdm what is the expected number of items as the total= argument, so tqdm can estimate the work remaining.
+    如果不是verbose模式，会用tqdm函数对as_completed的结果进行装饰，以显示进度条；由于done_iter没有长度，我们需要通知tqdm期待的项数作为total = argument，以帮助tqdm可以评估出剩余的工作量。
 13. Iterate over the futures as they are completed.
-14. Calling the result method on a future either returns the value returned by the callable, orraises whatever exception was caught when the callable was executed.
-15. This method may block waiting for a resolution, but not in this example because as_completed only returns futures that are done.
-16. Handle the potential exceptions; the rest of this function is identical to the sequential version of download_many (Example 17-13), except for the next callout. To provide context for the error message, retrieve the country code from the to_do_map using the current future as key. This was not necessary in the sequential version because we were iterating over the list of country codes, so we had the current cc; here we are iterating over the futures.
+    当futures完成时对他们进行遍历。
+14. Calling the result method on a future either returns the value returned by the callable, or raises whatever exception was caught when the callable was executed. This method may block waiting for a resolution, but not in this example because as_completed only returns futures that are done.
+    调用future对象的result方法，要么返回调用对象的返回结果，要么抛出在其执行时捕捉到的任何异常。本方法可能会阻塞以等待解析，但是由于as_completed只返回完成的future，所以该示例中没有。
+15. Handle the potential exceptions; the rest of this function is identical to the sequential version of download_many (Example 17-13), except for the next callout. 
+    处理潜在的异常；此方法其余部分为与顺序版本的download_many完全一致，除下一次注释部分以外。
+16. To provide context for the error message, retrieve the country code from the to_do_map using the current future as key. This was not necessary in the sequential version because we were iterating over the list of country codes, so we had the current cc; here we are iterating over the futures.
+    为了提供error message的文本，使用当前future作为key从to_do_map接获取国家码。在顺序版本里这不是必需的，因为我们遍历国家码列表后可以获取当前cc；在这里我们遍历futures。
 
 Example 17-14 uses an idiom that’s very useful with futures.as_completed: building a dict to map each future to other data that may be useful when the future is completed. Here the to_do_map maps each future to the country code assigned to it. This makes it easy to do follow-up processing with the result of the futures, despite the fact that they are produced out of order.  
+    例17-14使用了一个对futures.as_completed非常有用的方法：构建一个字典，当future完成时，匹配每个future和其他可能有用的数据。这里的to_do_map将每个future匹配了其对应的国家码。这样做对后续future结果的操作很方便，尽管这是无序产生的。
+
 Python threads are well suited for I/O-intensive applications, and the concurrent.futures package makes them trivially simple to use for certain use cases. This concludes our basic introduction to concurrent.futures. Let’s now discuss alternatives for when ThreadPoolExecutor or ProcessPoolExecutor are not suitable.  
+    Python线程很适合I/O密集型的应用，而concurrent.fugures包让这些在某些用例上更为容易使用。这就是对concurrent.future的基本介绍。接下来讨论当ThreadPoolExecutor或ProcessPoolExecutor都不适合时的替代方案。
 
 
 ## Threading and Multiprocessing Alternatives
+## 线程与多进程的替代方案
+
 Python has supported threads since its release 0.9.8 (1993); concurrent.futures is just the latest way of using them. In Python 3, the original thread module was deprecated in favor of the higher-level threading module.[7] If futures.ThreadPoolExecutor is not flexible enough for a certain job, you may need to build your own solution out of basic threading components such as Thread, Lock, Semaphore, etc.—possibly using the thread-safe queues of the queuemodule for passing data between threads. Those moving parts are encapsulated by futures.ThreadPoolExecutor.  
+    Python自发布0.9.8(1993)以来支持了线程操作；concurrent.futures仅仅是一种最新的使用他们的方式。在Python3中，原始的线程模块被弃用，取而代之的是更高级的threading模块。[7] 如果对某个任务来说，futures.ThreadPoolExecutor没有足够灵活，你可以需要使用基本的threading元素（如Thread，Lock，Semaphore等），构建你自己的解决方案。
 
 For CPU-bound work, you need to sidestep the GIL by launching multiple processes. The futures.ProcessPoolExecutor is the easiest way to do it. But again, if your use case is complex, you’ll need more advanced tools. The multiprocessing package emulates the threading API but delegates jobs to multiple processes. For simple programs, multiprocessing can replace threading with few changes. But multiprocessing also offers facilities to solve the biggest challenge faced by collaborating processes: how to pass around data.  
+    对于CPU绑定的工作，你需要通过启动多进程来回避GIL。futures.ProcessPoolExecutor是最简单的方式。不过，如果你的用例很复杂，你需要更多先进工具。multiprocessing包模拟了threading的API，但把工作委托给了多进程。对于简单的程序来说，多进程只需要很小的改动就可以替换多线程。但multiprocessing也提供工具去解决面对协作进程时的最大挑战：如何传递数据。
 
 [7]. The threading module has been available since Python 1.5.1 (1998), yet some insist on using the old thread module. In Python 3, it was renamed to _thread to highlight the fact that it’s just a low-level implementation detail, and shouldn’t be used in application code.
+    [7]. threading模块自Python 1.5.1(1998)时可用，但有些人仍然坚持使用旧版的thread模块。在Python3中，他被重命名为_thread以强调“这只是一个低级的实现细节，不应该被用在应用程序的代码中”。
 
 
 # Chapter Summary
-We started the chapter by comparing two concurrent HTTP clients with a sequential one, demonstrating significant performance gains over the sequential script.  
+# 章节总结
 
-After studying the first example based on concurrent.futures, we took a closer look at future objects, either instances of concurrent.futures.Future, or asyncio.Future, emphasizing what these classes have in common (their differences will be emphasized in Chapter 18). We saw how to create futures by calling Executor.submit(…), and iterate over completed futures with concurrent.futures.as_completed(…).  
+We started the chapter by comparing two concurrent HTTP clients with a sequential one, demonstrating significant performance gains over the sequential script.  
+    本章一开头，我们对比两种并发HTTP客户端和一种顺序HTTP客户端，演示了相对于顺序脚本的显著性能提升。
+
+After studying the first example based on concurrent.futures, we took a closer look at future objects, either instances of concurrent.futures.Future, or asyncio.Future, emphasizing what these classes have in common (their differences will be emphasized in Chapter 18). We saw how to create futures by calling Executor.submit(…), and iterate over completed futures with concurrent.futures.as_completed(…).   
+    在学习首个基于concurrent.futures的示例后，我们更仔细地关注了future对象，要么是concurrent.futures.Future的实例，要么是asyncio.Future的，强调了这些类的共同点（差异将在18章介绍）。然后我们看到如何通过调用Executor.submit(...)创建futures，并利用concurrent.futures.as_completed(…)遍历那些已完成的future。
 
 Next, we saw why Python threads are well suited for I/O-bound applications, despite the GIL: every standard library I/O function written in C releases the GIL, so while a given thread is waiting for I/O, the Python scheduler can switch to another thread. We then discussed the use of multiple processes with the concurrent.futures.ProcessPoolExecutor class, to go around the GIL and use multiple CPU cores to run cryptographic algorithms, achieving speedups of more than 100% when using four workers.  
+    接下来，我们看到了Python线程更适合IO绑定型应用的原因，尽管存在GIL：每个用C编写的标准库I/O方法都会释放GIL，搜易当一条线程为I/O而等待时，Python调度程序会切换到另一条线程。然后我们谈论了使用concurrent.futures.ProcessPoolExecutor类的多进程的使用，为了绕开GIL并利用多CPU核来运行密码算法，当使用4个worker时可以达到超过100%的速度提升。
 
 In the following section, we took a close look at how the concurrent.futures.ThreadPoolExecutor works, with a didactic example launching tasks that did nothing for a few seconds, except displaying their status with a timestamp.  
+    在接下来的小节中，我们更仔细观察了concurrent.futures.ThreadPoolExecutor的工作原理，用一个仅作示范的例子启动那些几秒内什么都不做的任务，只是显示他们的时间戳。
 
 Next we went back to the flag downloading examples. Enhancing them with a progress bar and proper error handling prompted further exploration of the future.as_completed generator function showing a common pattern: storing futures in a dict to link further information to them when submitting, so that we can use that information when the future comes out of the as_completed iterator.  
+    之后我们继续会的flag下载的示例。用一个进度条和正确的error处理逻辑增强功能，促使对future.as_completed生成器函数的更深层次的探索展示出的共同特点：在一个字典中保存futures，以便在提交时链接其对应的信息，所以当future从as_completed迭代器中出来时，我们一个可以使用这些信息。
 
-We concluded the coverage of concurrency with threads and processes with a brief reminder of the lower-level, but more flexible threading and multiprocessing modules, which represent the traditional way of leveraging threads and processes in Python. 
+We concluded the coverage of concurrency with threads and processes with a brief reminder of the lower-level, but more flexible threading and multiprocessing modules, which represent the traditional way of leveraging threads and processes in Python.  
+    我们总结了线程和进程在并发的覆盖性，并简单介绍了低级但更灵活的threading和multiprocessing模块，他们代表着Python中充分利用线程和进程的传统方式。
 
 
 ## Further Reading
