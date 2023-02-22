@@ -31,7 +31,7 @@ Example 17-1 shows the result of running the three scripts, three times each. I 
 Example 17-1. Three typical runs of the scripts flags.py, flags_threadpool.py, and flags_asyncio.py  
     示例17-1、三种典型的运行：flags.py, flags_threadpool.py，flags_asyncio.py
 
-```python
+```
 $ python3 flags.py
 BD BR CD CN DE EG ET FR ID IN IR JP MX NG PH PK RU TR US VN  # 1
 20 flags downloaded in 7.26s  # 2
@@ -86,7 +86,7 @@ On to the code.
     接下来是代码。
 
 ### 17.1.1 A Sequential Download Script
-## 17.1.1 顺序下载的脚本
+### 17.1.1 顺序下载的脚本
 Example 17-2 is not very interesting, but we’ll reuse most of its code and settings to implement the concurrent scripts, so it deserves some attention.  
    示例17-2并没有很有趣，但是我们会将这版代码中的大部分进行复用，并设置为来执行并发脚本，所以这值得关注
 。
@@ -325,7 +325,7 @@ Note that the future.result() call will never block in this example because the 
 
 Example 17-5. Output of flags_threadpool_ac.py
     示例17-5. flags_threadpool_ac.py的输出
-```python
+```
 $ python3 flags_threadpool_ac.py
 Scheduled for BR: <Future at 0x100791518 state=running>  # 1
 Scheduled for CN: <Future at 0x100791710 state=running>
@@ -418,6 +418,7 @@ There is no advantage in using a ProcessPoolExecutor for the flags download exam
 def download_many(cc_list):
     workers = min(MAX_WORKERS, len(cc_list))
     with futures.ThreadPoolExecutor(workers) as executor:
+        pass
 ```
 
 To This:
@@ -425,6 +426,7 @@ To This:
 ```python
 def download_many(cc_list):
     with futures.ProcessPoolExecutor() as executor:
+        pass
 ```
 
 For simple uses, the only notable difference between the two concrete executor classes is that ThreadPoolExecutor.__init__ requires a max_workers argument setting the number of threads in the pool. That is an optional argument in ProcessPoolExecutor, and most of the time we don’t use it—the default is the number of CPUs returned by os.cpu_count(). This makes sense: for CPU-bound processing, it makes no sense to ask for more workers than CPUs. On the other hand, for I/O-bound processing, you may use 10, 100, or 1,000 threads in a ThreadPoolExecutor; the best number depends on what you’re doing and the available memory, and finding the optimal number will require careful testing.  
@@ -535,7 +537,7 @@ Example 17-7 shows a sample run of Example 17-6.
 
 Example 17-7. Sample run of demo_executor_map.py from Example 17-6
 
-```python
+```
 $ python3 demo_executor_map.py
 [15:56:50] Script starting.  # 1
 [15:56:50] loiter(0): doing nothing for 0s...  # 2
@@ -624,7 +626,7 @@ Figure 17-1. Top-left: flags2_threadpool.py running with live progress bar gener
     图示17-1。左上角：flags2_threadpool.py运行中由tqdm生成的动态进度条；右下方：脚本运行结束后，相同的终端窗口。
 TQDM is very easy to use, the simplest example appears in an animated .gif in the project’s README.md. If you type the following code in the Python console after installing the tqdm package, you’ll see an animated progress bar were the comment is:  
     TQDM很简单，最简单的实例在README.md中的动画.gif中。在安装tqdm库后，如果你在Python控制台输入下列代码，你会在注释位置看到一个动态的进度条：
-```python
+```
 
 >>> import time
 >>> from tqdm import tqdm
@@ -640,7 +642,7 @@ The other feature of the flags2 example is a command-line interface. All three s
     flags2示例另外的特点在于他是一个命令行接口。所有三个脚本接收相同的选项，你可以通过运行带有-h选项的脚本来查看他们。示例17-8是help内容。
 
 Example 17-8. Help screen for the scripts in the flags2 series  
-```python
+```
 $ python3 flags2_threadpool.py -h
 usage: flags2_threadpool.py [-h] [-a] [-e] [-l N] [-m CONCURRENT] [-s LABEL]
                             [-v]
@@ -691,7 +693,7 @@ By default, each flags2 script will fetch the flags of the 20 most populous coun
 
 Example 17-9. Running flags2_sequential.py with all defaults: LOCAL site, top-20 flags, 1 concurrent connection  
     示例17-9. 使用默认参数运行flags2_squential.py：LOCAL site，前20个国旗，一个并发连接
-```python
+```
 $ python3 flags2_sequential.py
 LOCAL site: http://localhost:8001/flags
 Searching for 20 flags: from BD to VN
@@ -706,7 +708,7 @@ You can select which flags will be downloaded in several ways. Example 17-10 sho
 
 Example 17-10. Run flags2_threadpool.py to fetch all flags with country codes prefixes A, B, or C from DELAY server  
     示例17-10. 通过运行flags2_threadpool.py从DELAY服务中获取国家名前缀为A/B/C的所有国旗
-```python
+```
 $ python3 flags2_threadpool.py -s DELAY a b c
 DELAY site: http://localhost:8002/flags
 Searching for 78 flags: from AA to CZ
@@ -722,7 +724,7 @@ Regardless of how the country codes are selected, the number of flags to fetch c
 
 Example 17-11. Run flags2_asyncio.py to get 100 flags (-al 100) from the ERROR server, using 100 concurrent requests (-m 100)  
     示例17-11. 运行flags2_asyncio.py从ERROR服务通过100个并发请求（-m 100）获取100个国旗（-al 100）
-```python
+```
 $ python3 flags2_asyncio.py -s ERROR -al 100 -m 100
 ERROR site: http://localhost:8003/flags
 Searching for 100 flags: from AD to LK
@@ -910,37 +912,37 @@ if __name__ == '__main__':
 
 ```
 
-1. Import the progress-bar display library.
+1. Import the progress-bar display library.  
     导入进度条显示库。
-2. Import one function and one Enum from the flags2_common module.
+2. Import one function and one Enum from the flags2_common module.  
     从flags2_common导入一个函数与Enum。
-3. Reuse the donwload_one from flags2_sequential (Example 17-12).
+3. Reuse the donwload_one from flags2_sequential (Example 17-12).  
     复用flags2_sequential中的download_one函数。
-4. If the -m/--max_req command-line option is not given, this will be the maximum number of concurrent requests, implemented as the size of the thread pool; the actual number may be smaller, if the number of flags to download is smaller.
+4. If the -m/--max_req command-line option is not given, this will be the maximum number of concurrent requests, implemented as the size of the thread pool; the actual number may be smaller, if the number of flags to download is smaller.  
     如果命令行中未获取到-m/--max_req，该值即并发请求的最大数量，作为线程池的size使用；如果要下载的flag更少，该值的实际值会更小。
-5. MAX_CONCUR_REQ caps the maximum number of concurrent requests regardless of the number of flags to download or the -m/--max_req command-line option; it’s a safety precaution.
+5. MAX_CONCUR_REQ caps the maximum number of concurrent requests regardless of the number of flags to download or the -m/--max_req command-line option; it’s a safety precaution.  
     不管要下载多少flag或是-m/--max_req是多少，并发请求的最大数由MAX_CONCUR_REQ所限制；这是安全措施。
-6. Create the executor with max_workers set to concur_req, computed by the main function as the smaller of: MAX_CONCUR_REQ, the length of cc_list, and the value of the -m/--max_req command-line option. This avoids creating more threads than necessary.
+6. Create the executor with max_workers set to concur_req, computed by the main function as the smaller of: MAX_CONCUR_REQ, the length of cc_list, and the value of the -m/--max_req command-line option. This avoids creating more threads than necessary.  
     创建executor，max_worker由concur_req传入值设置，由main函数计算出MAX_CONCUR_REQ，cc_list长度和-m/--max_req这三个中最小的值。这样避免创建多余的线程。
-7. This dict will map each Future instance—representing one download—with the respective country code for error reporting.
+7. This dict will map each Future instance—representing one download—with the respective country code for error reporting.  
     该字典将为每个Future实例（表示一次下载）匹配各自的国家码，用于报告error。
-8. Iterate over the list of country codes in alphabetical order. The order of the results will depend on the timing of the HTTP responses more than anything, but if the size of the thread pool (given by concur_req) is much smaller than len(cc_list), you may notice the downloads batched alphabetically.
+8. Iterate over the list of country codes in alphabetical order. The order of the results will depend on the timing of the HTTP responses more than anything, but if the size of the thread pool (given by concur_req) is much smaller than len(cc_list), you may notice the downloads batched alphabetically.  
     以字母顺序遍历国家码列表。结果的顺序主要由HTTP响应时间决定，但是如果线程池的size（来自于concur_req）比len(cc_list)小，你可能会注意到下载顺序是按照字母顺序分批的。
-9. Each call to executor.submit schedules the execution of one callable and returns a Future instance. The first argument is the callable, the rest are the arguments it will receive.
+9. Each call to executor.submit schedules the execution of one callable and returns a Future instance. The first argument is the callable, the rest are the arguments it will receive.  
     executor.submit的每次调用会预定一个可调用对象的执行，并返回一个Future实例。第一个参数是可调用对象，其余为他接受的参数。
-10. Store the future and the country code in the dict.
+10. Store the future and the country code in the dict.  
     将fucure和国家码的对应保存进字典。
-11. futures.as_completed returns an iterator that yields futures as they are done.
+11. futures.as_completed returns an iterator that yields futures as they are done.  
     futures.as_completed返回一个迭代器，在他们结束时产出future。
-12. If not in verbose mode, wrap the result of as_completed with the tqdm function to display the progress bar; because done_iter has no len, we must tell tqdm what is the expected number of items as the total= argument, so tqdm can estimate the work remaining.
+12. If not in verbose mode, wrap the result of as_completed with the tqdm function to display the progress bar; because done_iter has no len, we must tell tqdm what is the expected number of items as the total= argument, so tqdm can estimate the work remaining.  
     如果不是verbose模式，会用tqdm函数对as_completed的结果进行装饰，以显示进度条；由于done_iter没有长度，我们需要通知tqdm期待的项数作为total = argument，以帮助tqdm可以评估出剩余的工作量。
-13. Iterate over the futures as they are completed.
+13. Iterate over the futures as they are completed.  
     当futures完成时对他们进行遍历。
-14. Calling the result method on a future either returns the value returned by the callable, or raises whatever exception was caught when the callable was executed. This method may block waiting for a resolution, but not in this example because as_completed only returns futures that are done.
+14. Calling the result method on a future either returns the value returned by the callable, or raises whatever exception was caught when the callable was executed. This method may block waiting for a resolution, but not in this example because as_completed only returns futures that are done.  
     调用future对象的result方法，要么返回调用对象的返回结果，要么抛出在其执行时捕捉到的任何异常。本方法可能会阻塞以等待解析，但是由于as_completed只返回完成的future，所以该示例中没有。
-15. Handle the potential exceptions; the rest of this function is identical to the sequential version of download_many (Example 17-13), except for the next callout. 
+15. Handle the potential exceptions; the rest of this function is identical to the sequential version of download_many (Example 17-13), except for the next callout.  
     处理潜在的异常；此方法其余部分为与顺序版本的download_many完全一致，除下一次注释部分以外。
-16. To provide context for the error message, retrieve the country code from the to_do_map using the current future as key. This was not necessary in the sequential version because we were iterating over the list of country codes, so we had the current cc; here we are iterating over the futures.
+16. To provide context for the error message, retrieve the country code from the to_do_map using the current future as key. This was not necessary in the sequential version because we were iterating over the list of country codes, so we had the current cc; here we are iterating over the futures.  
     为了提供error message的文本，使用当前future作为key从to_do_map接获取国家码。在顺序版本里这不是必需的，因为我们遍历国家码列表后可以获取当前cc；在这里我们遍历futures。
 
 Example 17-14 uses an idiom that’s very useful with futures.as_completed: building a dict to map each future to other data that may be useful when the future is completed. Here the to_do_map maps each future to the country code assigned to it. This makes it easy to do follow-up processing with the result of the futures, despite the fact that they are produced out of order.  
@@ -953,14 +955,13 @@ Python threads are well suited for I/O-intensive applications, and the concurren
 ## Threading and Multiprocessing Alternatives
 ## 线程与多进程的替代方案
 
-Python has supported threads since its release 0.9.8 (1993); concurrent.futures is just the latest way of using them. In Python 3, the original thread module was deprecated in favor of the higher-level threading module.[7] If futures.ThreadPoolExecutor is not flexible enough for a certain job, you may need to build your own solution out of basic threading components such as Thread, Lock, Semaphore, etc.—possibly using the thread-safe queues of the queuemodule for passing data between threads. Those moving parts are encapsulated by futures.ThreadPoolExecutor.  
+Python has supported threads since its release 0.9.8 (1993); concurrent.futures is just the latest way of using them. In Python 3, the original thread module was deprecated in favor of the higher-level threading module [^RUNOOB]. If futures.ThreadPoolExecutor is not flexible enough for a certain job, you may need to build your own solution out of basic threading components such as Thread, Lock, Semaphore, etc.—possibly using the thread-safe queues of the queuemodule for passing data between threads. Those moving parts are encapsulated by futures.ThreadPoolExecutor.  
     Python自发布0.9.8(1993)以来支持了线程操作；concurrent.futures仅仅是一种最新的使用他们的方式。在Python3中，原始的线程模块被弃用，取而代之的是更高级的threading模块。[7] 如果对某个任务来说，futures.ThreadPoolExecutor没有足够灵活，你可以需要使用基本的threading元素（如Thread，Lock，Semaphore等），构建你自己的解决方案。
 
 For CPU-bound work, you need to sidestep the GIL by launching multiple processes. The futures.ProcessPoolExecutor is the easiest way to do it. But again, if your use case is complex, you’ll need more advanced tools. The multiprocessing package emulates the threading API but delegates jobs to multiple processes. For simple programs, multiprocessing can replace threading with few changes. But multiprocessing also offers facilities to solve the biggest challenge faced by collaborating processes: how to pass around data.  
-    对于CPU绑定的工作，你需要通过启动多进程来回避GIL。futures.ProcessPoolExecutor是最简单的方式。不过，如果你的用例很复杂，你需要更多先进工具。multiprocessing包模拟了threading的API，但把工作委托给了多进程。对于简单的程序来说，多进程只需要很小的改动就可以替换多线程。但multiprocessing也提供工具去解决面对协作进程时的最大挑战：如何传递数据。
+    对于CPU绑定的工作，你需要通过启动多进程来回避GIL。futures.ProcessPoolExecutor是最简单的方式。不过，如果你的用例很复杂，你需要更多先进工具。multiprocessing包模拟了threading的API，但把工作委托给了多进程。对于简单的程序来说，多进程只需要很小的改动就可以替换多线程。但multiprocessing也提供工具去解决面对协作进程时的最大挑战：如何传递数据。  
 
-[7]. The threading module has been available since Python 1.5.1 (1998), yet some insist on using the old thread module. In Python 3, it was renamed to _thread to highlight the fact that it’s just a low-level implementation detail, and shouldn’t be used in application code.
-    [7]. threading模块自Python 1.5.1(1998)时可用，但有些人仍然坚持使用旧版的thread模块。在Python3中，他被重命名为_thread以强调“这只是一个低级的实现细节，不应该被用在应用程序的代码中”。
+[^RUNOOB]: The threading module has been available since Python 1.5.1 (1998), yet some insist on using the old thread module. In Python 3, it was renamed to _thread to highlight the fact that it’s just a low-level implementation detail, and shouldn’t be used in application code. threading模块自Python 1.5.1(1998)时可用，但有些人仍然坚持使用旧版的thread模块。在Python3中，他被重命名为_thread以强调“这只是一个低级的实现细节，不应该被用在应用程序的代码中”。
 
 
 # Chapter Summary
@@ -989,10 +990,13 @@ We concluded the coverage of concurrency with threads and processes with a brief
 ## 延伸阅读
 
 The concurrent.futures package was contributed by Brian Quinlan, who presented it in a great talk titled “The Future Is Soon!” at PyCon Australia 2010. Quinlan’s talk has no slides; he shows what the library does by typing code directly in the Python console.  
+    concurrent.futures包由Brain Quinlan提供，他在2010年澳大利亚的PyCon一场名为“The future IS Soon!”的演讲中发布了他。Quinlan的发言没有幻灯片；他直接在Python控制台用类型代码展示了这个库的作用。
 
 As a motivating example, the presentation features a short video with XKCD cartoonist/programmer Randall Munroe making an unintended DOS attack on Google Maps to build a colored map of driving times around his city. The formal introduction to the library is PEP 3148 - futures - execute computations asynchronously. In the PEP, Quinlan wrote that the concurrent.futures library was “heavily influenced by the Java java.util.concurrent package.”  
+    作为一个激动人心的例子，演讲放映了一段短视频，展示了XKCD漫画家、程序员Randall Munroe通过对谷歌地图进行无意识DOS攻击，来建立一个关于他的城市开车时间的彩色地图。而该库正式的介绍在PEP 3148 —— futures —— 异步执行计算。在此PEP中，Quinlan将concurrent.futures库描述为“深受Java java.util.concurrent包的影响”。
 
 Parallel Programming with Python (Packt), by Jan Palach, covers several tools for concurrent programming, including the concurrent.futures, threading, and multiprocessing modules. It goes beyond the standard library to discuss Celery, a task queue used to distribute work across threads and processes, even on different machines. In the Django community, Celery is probably the most widely used system to offload heavy tasks such as PDF generation to other processes, thus avoiding delays in producing an HTTP response.  
+    Python并行编程（Packt），由Jan Palach编写，涵盖了为并发编程准备的各种工具，其中包括concurrent.futures，threading与multiprocessing模块。这超越了标准库来讨论Celery，一个用于跨线程与进程分发工作的task队列，甚至在不同的机器上。在Django社区中，Celery可能是最广泛使用的系统，它可以将沉重的任务(如PDF生成)卸载给其他进程，从而避免产生HTTP响应的延迟。
 
 In the Beazley and Jones Python Cookbook, 3E (O’Reilly) there are recipes using concurrent.futures starting with “Recipe 11.12. Understanding Event-Driven I/O.” “Recipe 12.7. Creating a Thread Pool” shows a simple TCP echo server, and “Recipe 12.8. Performing Simple Parallel Programming” offers a very practical example: analyzing a whole directory of gzip compressed Apache logfiles with the help of a ProcessPoolExecutor. For more about threads, the entire Chapter 12 of Beazley and Jones is great, with special mention to “Recipe 12.10. Defining an Actor Task,” which demonstrates the Actor model: a proven way of coordinating threads through message passing.  
 
@@ -1009,12 +1013,5 @@ While the GIL is real problem and is not likely to go away soon, Jesse Noller an
 For CPU- and data-intensive parallel processing, a new option with a lot of momentum in the big data community is the Apache Spark distributed computing engine, offering a friendly Python API and support for Python objects as data, as shown in their examples page.  
 
 Two elegant and super easy libraries for parallelizing tasks over processes are lelo by João S. O. Bueno and python-parallelize by Nat Pryce. The lelo package defines a @parallel decorator that you can apply to any function to magically make it unblocking: when you call the decorated function, its execution is started in another process. Nat Pryce’s python-parallelize package provides a parallelize generator that you can use to distribute the execution of a for loop over multiple CPUs. Both packages use the multiprocessing module under the covers.
-
-
-
-
-
-
-
 
 
