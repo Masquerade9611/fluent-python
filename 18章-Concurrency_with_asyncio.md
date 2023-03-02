@@ -61,3 +61,208 @@ In this chapter we’ll see:
 Let’s get started with the simple example contrasting threading and asyncio.  
     让我们从一个对比threading与asyncio的简单例子开始。
 
+
+## Thread Versus Coroutine: A Comparison
+
+During a discussion about threads and the GIL, Michele Simionato posted a simple but fun example using multiprocessing to display an animated spinner made with the ASCII characters "|/-\" on the console while some long computation is running.
+
+I adapted Simionato’s example to use a thread with the Threading module and then a coroutine with asyncio, so you can see the two examples side by side and understand how to code concurrent behavior without threads.
+
+The output shown in Examples 18-1 and 18-2 is animated, so you really should run the scripts to see what happens. If you’re in the subway (or somewhere else without a WiFi connection), take a look at Figure 18-1 and imagine the \ bar before the word “thinking” is spinning.
+
+Figure 18-1. The scripts spinner_thread.py and spinner_asyncio.py produce similar output: the repr of a spinner object and the text Answer: 42. In the screenshot, spinner_asyncio.py is still running, and the spinner message \ thinking! is shown; when the script ends, that line will be replaced by the Answer: 42.
+
+Let’s review the spinner_thread.py script first (Example 18-1).
+
+Example 18-1. spinner_thread.py: animating a text spinner with a thread
+```python
+import threading
+import itertools
+import time
+import sys
+
+
+class Signal:  # 1
+    go = True
+
+
+def spin(msg, signal):  # 2
+    write, flush = sys.stdout.write, sys.stdout.flush
+    for char in itertools.cycle('|/-\\'):  # 3
+        status = char + ' ' + msg
+        write(status)
+        flush()
+        write('\x08' * len(status))  # 4
+        time.sleep(.1)
+        if not signal.go:  # 5
+            break
+    write(' ' * len(status) + '\x08' * len(status))  # 6
+
+
+def slow_function():  # 7
+    # pretend waiting a long time for I/O
+    time.sleep(3)  # 8
+    return 42
+
+
+def supervisor():  # 9
+    signal = Signal()
+    spinner = threading.Thread(target=spin,
+                               args=('thinking!', signal))
+    print('spinner object:', spinner)  # 10
+    spinner.start()  # 11
+    result = slow_function()  # 12
+    signal.go = False  # 13
+    spinner.join()  # 14
+    return result
+
+
+def main():
+    result = supervisor()  # 15
+    print('Answer:', result)
+
+
+if __name__ == '__main__':
+    main()
+```
+
+1. This class defines a simple mutable object with a go attribute we’ll use to control the thread from outside.
+2. This function will run in a separate thread. The signal argument is an instance of the Signal class just defined.
+3. This is actually an infinite loop because itertools.cycle produces items cycling from the given sequence forever.
+4. The trick to do text-mode animation: move the cursor back with backspace characters (\x08).
+5. If the go attribute is no longer True, exit the loop.
+6. Clear the status line by overwriting with spaces and moving the cursor back to the beginning.
+7. Imagine this is some costly computation.
+8. Calling sleep will block the main thread, but crucially, the GIL will be released so the secondary thread will proceed.
+9. This function sets up the secondary thread, displays the thread object, runs the slow computation, and kills the thread.
+10. Display the secondary thread object. The output looks like <Thread(Thread-1, initial)>.
+11. Start the secondary thread.
+12. Run slow_function; this blocks the main thread. Meanwhile, the spinner is animated by the secondary thread.
+13. Change the state of the signal; this will terminate the for loop inside the spin function.
+14. Wait until the spinner thread finishes.
+15. Run the supervisor function.
+
+
+Note that, by design, there is no API for terminating a thread in Python. You must send it a message to shut down. Here I used the signal.go attribute: when the main thread sets it to false, the spinner thread will eventually notice and exit cleanly.
+
+Now let’s see how the same behavior can be achieved with an @asyncio.coroutine instead of a thread.
+
+    As noted in the “Chapter Summary” on page 498 (Chapter 16), asyncio uses a stricter definition of “coroutine.” A coroutine suitable for use with the asyncio API must use yield from and not yield in its body. Also, an asyncio coroutine should be driven by a caller invoking it through yield from or by passing the coroutine to one of the asyncio functions such as asyncio.async(…) and others covered in this chapter. Finally, the @asyncio.coroutine decorator should be applied to coroutines, as shown in the examples.
+
+Take a look at Example 18-2.
+Example 18-2. spinner_asyncio.py: animating a text spinner with a coroutine
+```python
+import asyncio
+import itertools
+import sys
+
+
+@asyncio.coroutine  # 1
+def spin(msg):  # 2
+    write, flush = sys.stdout.write, sys.stdout.flush
+    for char in itertools.cycle('|/-\\'):
+        status = char + ' ' + msg
+        write(status)
+        flush()
+        write('\x08' * len(status))
+        try:
+            yield from asyncio.sleep(.1)  # 3
+        except asyncio.CancelledError:  # 4
+            break
+    write(' ' * len(status) + '\x08' * len(status))
+
+
+@asyncio.coroutine
+def slow_function():  # 5
+    # pretend waiting a long time for I/O
+    yield from asyncio.sleep(3)  # 6
+    return 42
+
+
+@asyncio.coroutine
+def supervisor():  # 7
+    spinner = asyncio.async(spin('thinking!'))  # 8
+    print('spinner object:', spinner)  # 9
+    result = yield from slow_function()  # 10
+    spinner.cancel()  # 11
+    return result
+
+
+def main():
+    loop = asyncio.get_event_loop()  # 12
+    result = loop.run_until_complete(supervisor())  # 13
+    loop.close()
+    print('Answer:', result)
+
+
+if __name__ == '__main__':
+    main()
+
+```
+
+1. Coroutines intended for use with asyncio should be decorated with @asyncio.coroutine. This not mandatory, but is highly advisable. See explanation following this listing.
+2. Here we don’t need the signal argument that was used to shut down the thread in the spin function of Example 18-1.
+3. Use yield from asyncio.sleep(.1) instead of just time.sleep(.1), to sleep without blocking the event loop.
+4. If asyncio.CancelledError is raised after spin wakes up, it’s because cancellation was requested, so exit the loop.
+5. slow_function is now a coroutine, and uses yield from to let the event loop proceed while this coroutine pretends to do I/O by sleeping.
+6. The yield from asyncio.sleep(3) expression handles the control flow to the main loop, which will resume this coroutine after the sleep delay.
+7. supervisor is now a coroutine as well,so it can drive slow_function with yield from.
+8. asyncio.async(…) schedules the spin coroutine to run, wrapping it in a Task object, which is returned immediately.
+9. Display the Task object. The output looks like <Task pending coro=<spin() running at spinner_asyncio.py:12>>.
+10. Drive the slow_function(). When that is done, get the returned value. Meanwhile, the event loop will continue running because slow_function ultimately uses yield from asyncio.sleep(3) to hand control back to the main loop.
+11. ATask object can be cancelled; thisraises asyncio.CancelledError at the yield line where the coroutine is currently suspended. The coroutine may catch the exception and delay or even refuse to cancel.
+12. Get a reference to the event loop.
+13. Drive the supervisor coroutine to completion; the return value of the coroutine is the return value of this call.  
+
+
+    Never use time.sleep(…) in asyncio coroutines unless you want to block the main thread, therefore freezing the event loop and probably the whole application as well. If a coroutine needs to spend some time doing nothing, it should yield from asyncio.sleep(DELAY).
+
+The use of the @asyncio.coroutine decorator is not mandatory, but highly recommended: it makes the coroutines stand out among regular functions, and helps with debugging by issuing a warning when a coroutine is garbage collected without being yielded from—which means some operation was left unfinished and is likely a bug. This is not a priming decorator.
+
+Note that the line count of spinner_thread.py and spinner_asyncio.py is nearly the same. The supervisor functions are the heart of these examples. Let’s compare them in detail. 
+Example 18-3 lists only the supervisor from the Threading example.
+
+Example 18-3. spinner_thread.py: the threaded supervisor function
+```python
+def supervisor():
+    signal = Signal()
+    spinner = threading.Thread(target=spin,
+                               args=('thinking!', signal))
+    print('spinner object:', spinner)
+    spinner.start()
+    result = slow_function()
+    signal.go = False
+    spinner.join()
+    return result
+
+```
+
+For comparison, Example 18-4 shows the supervisor coroutine.
+
+Example 18-4. spinner_asyncio.py: the asynchronous supervisor coroutine
+```python
+@asyncio.coroutine
+def supervisor():
+    spinner = asyncio.async(spin('thinking!'))
+    print('spinner object:', spinner)
+    result = yield from slow_function()
+    spinner.cancel()
+    return result
+
+```
+Here is a summary of the main differences to note between the two supervisor implementations:
+- An asyncio.Task is roughly the equivalent of a threading.Thread. Victor Stinner, special technical reviewer for this chapter, points out that “a Task is like a green thread in libraries that implement cooperative multitasking, such as gevent.”
+- A Task drives a coroutine, and a Thread invokes a callable.
+- You don’t instantiate Task objects yourself, you get them by passing a coroutine to asyncio.async(…) or loop.create_task(…).
+- When you get a Task object, it is already scheduled to run (e.g., by asyncio.async); a Thread instance must be explicitly told to run by calling its start method.
+- In the threaded supervisor, the slow_function is a plain function and is directly invoked by the thread. In the asyncio supervisor, slow_function is a coroutine driven by yield from.
+- There’s no API to terminate a thread from the outside, because a thread could be interrupted at any point, leaving the system in an invalid state. For tasks, there is the Task.cancel() instance method, which raises CancelledError inside the coroutine. The coroutine can deal with this by catching the exception in the yield where it’s suspended.
+- The supervisor coroutine must be executed with loop.run_until_complete in the main function.
+
+This comparison should help you understand how concurrent jobs are orchestrated with asyncio, in contrast to how it’s done with the more familiar Threading module.
+
+One final point related to threads versus coroutines: if you’ve done any nontrivial programming with threads, you know how challenging it is to reason about the program because the scheduler can interrupt a thread at any time. You must remember to hold locks to protect the critical sections of your program, to avoid getting interrupted in the middle of a multistep operation—which could leave data in an invalid state.
+
+With coroutines, everything is protected against interruption by default. You must explicitly yield to let the rest of the program run. Instead of holding locks to synchronize the operations of multiple threads, you have coroutines that are “synchronized” by definition: only one of them is running at any time. And when you want to give up control, you use yield or yield from to give control back to the scheduler. That’s why it is possible to safely cancel a coroutine: by definition, a coroutine can only be cancelled when it’s suspended at a yield point, so you can perform cleanup by handling the CancelledError exception.
+
+We’ll now see how the asyncio.Future class differs from the concurrent.futures.Future class we saw in Chapter 17.
