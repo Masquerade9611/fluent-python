@@ -1,7 +1,6 @@
 # Chapter 18 Concurrency with asyncio
 # 第18章 使用asyncio处理并发
 
-
 *Concurrency is about dealing with lots of things at once.  
 Parallelism is about doing lots of things at once.  
 Not the same, but related.  
@@ -57,24 +56,29 @@ In this chapter we’ll see:
 - Why asyncio is poised to have a big impact in the Python ecosystem  
     为什么asyncio会对Python生态系统有着重大影响
 
-
 Let’s get started with the simple example contrasting threading and asyncio.  
     让我们从一个对比threading与asyncio的简单例子开始。
 
-
 ## Thread Versus Coroutine: A Comparison
+## 线程 vs 协程
 
-During a discussion about threads and the GIL, Michele Simionato posted a simple but fun example using multiprocessing to display an animated spinner made with the ASCII characters "|/-\" on the console while some long computation is running.
+During a discussion about threads and the GIL, Michele Simionato posted a simple but fun example using multiprocessing to display an animated spinner made with the ASCII characters "|/-\" on the console while some long computation is running.  
+    在讨论线程与GIL的期间，Michele Simionato贴出了一份简单但有趣的例子，使用了multiprocessing在控制台展示一个由ASCII字符"|/-\"之制作的动画转轮，同时运行一些长时间的运算。
 
-I adapted Simionato’s example to use a thread with the Threading module and then a coroutine with asyncio, so you can see the two examples side by side and understand how to code concurrent behavior without threads.
+I adapted Simionato’s example to use a thread with the Threading module and then a coroutine with asyncio, so you can see the two examples side by side and understand how to code concurrent behavior without threads.  
+    我调整了Simionato的例子，改用Threading模块调用线程，以及后续用asyncio调用协程，所以你会一起看到两个例子并理解不使用线程的并发行为是如何编写的。
 
-The output shown in Examples 18-1 and 18-2 is animated, so you really should run the scripts to see what happens. If you’re in the subway (or somewhere else without a WiFi connection), take a look at Figure 18-1 and imagine the \ bar before the word “thinking” is spinning.
+The output shown in Examples 18-1 and 18-2 is animated, so you really should run the scripts to see what happens. If you’re in the subway (or somewhere else without a WiFi connection), take a look at Figure 18-1 and imagine the \ bar before the word “thinking” is spinning. 
+    例18-1与18-2的输出是动态的，所以你真的应该亲自运行下脚本看看会发生什么。如果你在地铁上（或是一些没有WiFi的地方），可以看看图示18-1，想象一下"thinking"前的"\"正在旋转。
 
 Figure 18-1. The scripts spinner_thread.py and spinner_asyncio.py produce similar output: the repr of a spinner object and the text Answer: 42. In the screenshot, spinner_asyncio.py is still running, and the spinner message \ thinking! is shown; when the script ends, that line will be replaced by the Answer: 42.
+    图18-1. spinner_thread.py脚本与spinner_asyncio.py产出类似的输出：spinner对象的repr与text Answer: 42。在截图中，spinner_asyncio.py仍在运行，展示旋转信息"\ thinking!"；当脚本结束后，该行被替换为"Answer: 42"。
 
-Let’s review the spinner_thread.py script first (Example 18-1).
+Let’s review the spinner_thread.py script first (Example 18-1).  
+    首先研究下脚本spinner_thread.py
 
-Example 18-1. spinner_thread.py: animating a text spinner with a thread
+Example 18-1. spinner_thread.py: animating a text spinner with a thread  
+    例18-1. spinner_thread.py：使用线程，让一段文本旋转器运作起来
 ```python
 import threading
 import itertools
@@ -126,31 +130,49 @@ if __name__ == '__main__':
     main()
 ```
 
-1. This class defines a simple mutable object with a go attribute we’ll use to control the thread from outside.
-2. This function will run in a separate thread. The signal argument is an instance of the Signal class just defined.
-3. This is actually an infinite loop because itertools.cycle produces items cycling from the given sequence forever.
-4. The trick to do text-mode animation: move the cursor back with backspace characters (\x08).
-5. If the go attribute is no longer True, exit the loop.
-6. Clear the status line by overwriting with spaces and moving the cursor back to the beginning.
-7. Imagine this is some costly computation.
-8. Calling sleep will block the main thread, but crucially, the GIL will be released so the secondary thread will proceed.
-9. This function sets up the secondary thread, displays the thread object, runs the slow computation, and kills the thread.
-10. Display the secondary thread object. The output looks like <Thread(Thread-1, initial)>.
-11. Start the secondary thread.
-12. Run slow_function; this blocks the main thread. Meanwhile, the spinner is animated by the secondary thread.
-13. Change the state of the signal; this will terminate the for loop inside the spin function.
-14. Wait until the spinner thread finishes.
-15. Run the supervisor function.
+1. This class defines a simple mutable object with a go attribute we’ll use to control the thread from outside.  
+    此类定义了一个带有go属性的简单的可变对象，我们可以用来从外部控制线程。
+2. This function will run in a separate thread. The signal argument is an instance of the Signal class just defined.  
+    该函数将会在一个独立线程中运行。信号参数是刚刚定义的Signal类的实例。
+3. This is actually an infinite loop because itertools.cycle produces items cycling from the given sequence forever.  
+    这实际是个无限循环，因为itertools.cycle将一直循环传入的序列并产出项。
+4. The trick to do text-mode animation: move the cursor back with backspace characters (\x08).  
+    文本动画的技巧：用退格字符（\x08）将光标向后移动。
+5. If the go attribute is no longer True, exit the loop.  
+    如果go属性不再是True，终止该循环。
+6. Clear the status line by overwriting with spaces and moving the cursor back to the beginning.  
+    通过用空格覆盖并将光标移回开始位置来清理status行。
+7. Imagine this is some costly computation.  
+    想象这里是一些费时的计算操作。
+8. Calling sleep will block the main thread, but crucially, the GIL will be released so the secondary thread will proceed.  
+    调用sleep将阻塞主线程，但另外更关键的是，GIL将被释放，第二条线程将启动。
+9. This function sets up the secondary thread, displays the thread object, runs the slow computation, and kills the thread.  
+    该函数设置了第二条线程，显示出线程对象，运行缓慢的计算操作并kill掉线程。
+10. Display the secondary thread object. The output looks like <Thread(Thread-1, initial)>.  
+    显示第二条线程的对象。输出内容诸如<Thread(Thread-1, initial)>。
+11. Start the secondary thread.  
+    启动第二条线程。
+12. Run slow_function; this blocks the main thread. Meanwhile, the spinner is animated by the secondary thread.  
+    运行slow_function；这将阻塞主线程。同时旋转器通过第二条线程开始运作。
+13. Change the state of the signal; this will terminate the for loop inside the spin function.  
+    修改信号状态；这将终止spin函数内部的for循环。
+14. Wait until the spinner thread finishes.  
+    等待spinner线程结束。
+15. Run the supervisor function.  
+    运行supervisor函数。
 
-
-Note that, by design, there is no API for terminating a thread in Python. You must send it a message to shut down. Here I used the signal.go attribute: when the main thread sets it to false, the spinner thread will eventually notice and exit cleanly.
+Note that, by design, there is no API for terminating a thread in Python. You must send it a message to shut down. Here I used the signal.go attribute: when the main thread sets it to false, the spinner thread will eventually notice and exit cleanly.  
+    注意，通过设计，在Python中没有终止线程的API。你必须向其发送一条信息来关闭。这里我用了signal.go属性：当主线程将其设置为false，spinner线程最终会注意到并干净地退出。
 
 Now let’s see how the same behavior can be achieved with an @asyncio.coroutine instead of a thread.
+    现在我们看看用@asyncio.coroutine代替线程如何实现相同的效果。
 
-    As noted in the “Chapter Summary” on page 498 (Chapter 16), asyncio uses a stricter definition of “coroutine.” A coroutine suitable for use with the asyncio API must use yield from and not yield in its body. Also, an asyncio coroutine should be driven by a caller invoking it through yield from or by passing the coroutine to one of the asyncio functions such as asyncio.async(…) and others covered in this chapter. Finally, the @asyncio.coroutine decorator should be applied to coroutines, as shown in the examples.
+    As noted in the “Chapter Summary” on page 498 (Chapter 16), asyncio uses a stricter definition of “coroutine.” A coroutine suitable for use with the asyncio API must use yield from and not yield in its body. Also, an asyncio coroutine should be driven by a caller invoking it through yield from or by passing the coroutine to one of the asyncio functions such as asyncio.async(…) and others covered in this chapter. Finally, the @asyncio.coroutine decorator should be applied to coroutines, as shown in the examples.  
+    正如498页（16章）章节总结提到的，asyncio使用了“协程”的更严格定义。适合与asyncio API一起使用的协程必须使用yield from且不能在他的结构中产出。此外，一个asyncio协程应该由调用者来驱动，通过经由yield from调用或通过将协程传给其中一个asyncio函数（像是asyncio.async(…)）和本章介绍的其他函数。最终，@asyncio.coroutine装饰器应该应用于协程，如示例所示。
 
 Take a look at Example 18-2.
 Example 18-2. spinner_asyncio.py: animating a text spinner with a coroutine
+
 ```python
 import asyncio
 import itertools
@@ -200,11 +222,16 @@ if __name__ == '__main__':
 
 ```
 
-1. Coroutines intended for use with asyncio should be decorated with @asyncio.coroutine. This not mandatory, but is highly advisable. See explanation following this listing.
-2. Here we don’t need the signal argument that was used to shut down the thread in the spin function of Example 18-1.
-3. Use yield from asyncio.sleep(.1) instead of just time.sleep(.1), to sleep without blocking the event loop.
-4. If asyncio.CancelledError is raised after spin wakes up, it’s because cancellation was requested, so exit the loop.
-5. slow_function is now a coroutine, and uses yield from to let the event loop proceed while this coroutine pretends to do I/O by sleeping.
+1. Coroutines intended for use with asyncio should be decorated with @asyncio.coroutine. This not mandatory, but is highly advisable. See explanation following this listing.  
+    用于asyncio的协程应该被@asyncio.coroutine装饰。这不是强制的，但非常可取。请参考下面的解释说明。
+2. Here we don’t need the signal argument that was used to shut down the thread in the spin function of Example 18-1.  
+    这里我们不再需要信号参数，该参数在示例18-1中国被用于关闭spin函数的线程。
+3. Use yield from asyncio.sleep(.1) instead of just time.sleep(.1), to sleep without blocking the event loop.  
+    使用yield from asyncio.sleep(.1)来代替time.sleep(.1)，来sleep而不阻塞事件循环。
+4. If asyncio.CancelledError is raised after spin wakes up, it’s because cancellation was requested, so exit the loop.  
+    如果唤醒spin后抛出了asyncio.CancelledError，这是因为请求了cancellation，所以退出循环。
+5. slow_function is now a coroutine, and uses yield from to let the event loop proceed while this coroutine pretends to do I/O by sleeping.  
+    slow_function目前是协程，
 6. The yield from asyncio.sleep(3) expression handles the control flow to the main loop, which will resume this coroutine after the sleep delay.
 7. supervisor is now a coroutine as well,so it can drive slow_function with yield from.
 8. asyncio.async(…) schedules the spin coroutine to run, wrapping it in a Task object, which is returned immediately.
@@ -223,6 +250,7 @@ Note that the line count of spinner_thread.py and spinner_asyncio.py is nearly t
 Example 18-3 lists only the supervisor from the Threading example.
 
 Example 18-3. spinner_thread.py: the threaded supervisor function
+
 ```python
 def supervisor():
     signal = Signal()
@@ -240,7 +268,9 @@ def supervisor():
 For comparison, Example 18-4 shows the supervisor coroutine.
 
 Example 18-4. spinner_asyncio.py: the asynchronous supervisor coroutine
+
 ```python
+
 @asyncio.coroutine
 def supervisor():
     spinner = asyncio.async(spin('thinking!'))
@@ -250,6 +280,7 @@ def supervisor():
     return result
 
 ```
+
 Here is a summary of the main differences to note between the two supervisor implementations:
 - An asyncio.Task is roughly the equivalent of a threading.Thread. Victor Stinner, special technical reviewer for this chapter, points out that “a Task is like a green thread in libraries that implement cooperative multitasking, such as gevent.”
 - A Task drives a coroutine, and a Thread invokes a callable.
