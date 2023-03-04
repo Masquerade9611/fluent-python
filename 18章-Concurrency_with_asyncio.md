@@ -171,7 +171,8 @@ Now let’s see how the same behavior can be achieved with an @asyncio.coroutine
     正如498页（16章）章节总结提到的，asyncio使用了“协程”的更严格定义。适合与asyncio API一起使用的协程必须使用yield from且不能在他的结构中产出。此外，一个asyncio协程应该由调用者来驱动，通过经由yield from调用或通过将协程传给其中一个asyncio函数（像是asyncio.async(…)）和本章介绍的其他函数。最终，@asyncio.coroutine装饰器应该应用于协程，如示例所示。
 
 Take a look at Example 18-2.
-Example 18-2. spinner_asyncio.py: animating a text spinner with a coroutine
+Example 18-2. spinner_asyncio.py: animating a text spinner with a coroutine  
+    例18-2. spinner_asyncio.py：使用协程让文本旋转起来
 
 ```python
 import asyncio
@@ -231,25 +232,38 @@ if __name__ == '__main__':
 4. If asyncio.CancelledError is raised after spin wakes up, it’s because cancellation was requested, so exit the loop.  
     如果唤醒spin后抛出了asyncio.CancelledError，这是因为请求了cancellation，所以退出循环。
 5. slow_function is now a coroutine, and uses yield from to let the event loop proceed while this coroutine pretends to do I/O by sleeping.  
-    slow_function目前是协程，
-6. The yield from asyncio.sleep(3) expression handles the control flow to the main loop, which will resume this coroutine after the sleep delay.
-7. supervisor is now a coroutine as well,so it can drive slow_function with yield from.
-8. asyncio.async(…) schedules the spin coroutine to run, wrapping it in a Task object, which is returned immediately.
-9. Display the Task object. The output looks like <Task pending coro=<spin() running at spinner_asyncio.py:12>>.
-10. Drive the slow_function(). When that is done, get the returned value. Meanwhile, the event loop will continue running because slow_function ultimately uses yield from asyncio.sleep(3) to hand control back to the main loop.
-11. ATask object can be cancelled; thisraises asyncio.CancelledError at the yield line where the coroutine is currently suspended. The coroutine may catch the exception and delay or even refuse to cancel.
-12. Get a reference to the event loop.
+    slow_function在这里是协程，使用yield from来让事件循环开始运行，而这个协程通过sleeping假装做一些I/O操作。
+6. The yield from asyncio.sleep(3) expression handles the control flow to the main loop, which will resume this coroutine after the sleep delay.  
+    表达式yield from asyncio.sleep(3)让控制流进入主循环，在sleep延迟后将恢复该协程。
+7. supervisor is now a coroutine as well,so it can drive slow_function with yield from.  
+    supervisot在这里也是协程，所以他可以通过yield from来驱动slow_function。
+8. asyncio.async(…) schedules the spin coroutine to run, wrapping it in a Task object, which is returned immediately.  
+    asyncio.async()安排spin协程的运行，将其包装进Task对象，该对象立刻返回。
+9. Display the Task object. The output looks like <Task pending coro=<spin() running at spinner_asyncio.py:12>>.  
+    显示Task对象。输出内容如下<Task pending coro=<spin() running at spinner_asyncio.py:12>>。
+10. Drive the slow_function(). When that is done, get the returned value. Meanwhile, the event loop will continue running because slow_function ultimately uses yield from asyncio.sleep(3) to hand control back to the main loop.  
+    驱动slow_function()。当其执行完成时获取返回值。同时，由于slow_function最终使用yield from asynico.sleep(3)让控制流交还至主循环，事件循环将继续运行。
+11. A Task object can be cancelled; this raises asyncio.CancelledError at the yield line where the coroutine is currently suspended. The coroutine may catch the exception and delay or even refuse to cancel.  
+    Task对象可以被取消；这会在当前暂停的协程位置的yield行会抛出asyncio.CancelledError。协程可能捕捉该异常并延迟甚至拒绝取消。
+12. Get a reference to the event loop.  
+    获取事件循环的引用。
 13. Drive the supervisor coroutine to completion; the return value of the coroutine is the return value of this call.  
+    驱动supervisor协程执行完成；协程的返回值是本次调用的返回值。
 
+    Never use time.sleep(…) in asyncio coroutines unless you want to block the main thread, therefore freezing the event loop and probably the whole application as well. If a coroutine needs to spend some time doing nothing, it should yield from asyncio.sleep(DELAY).  
+    永远不要在asyncio协程中使用time.sleep()，除非你想要阻塞主线程，从而冻结事件循环甚至整个应用。如果一个协程需要在一段时间什么都不做，应该使用yield from asyncio.sleep(DELAY)。
 
-    Never use time.sleep(…) in asyncio coroutines unless you want to block the main thread, therefore freezing the event loop and probably the whole application as well. If a coroutine needs to spend some time doing nothing, it should yield from asyncio.sleep(DELAY).
+The use of the @asyncio.coroutine decorator is not mandatory, but highly recommended: it makes the coroutines stand out among regular functions, and helps with debugging by issuing a warning when a coroutine is garbage collected without being yielded from—which means some operation was left unfinished and is likely a bug. This is not a priming decorator.  
+    @asyncio.coroutine装饰器不是强制使用的，但非常建议使用：他让协程在那些规则的函数中脱颖而出，且当一条协程被垃圾回收而没有yield from，通过一条warning信息很容易调试——这意味着某些操作是未完成的，这很可能是个bug。
 
-The use of the @asyncio.coroutine decorator is not mandatory, but highly recommended: it makes the coroutines stand out among regular functions, and helps with debugging by issuing a warning when a coroutine is garbage collected without being yielded from—which means some operation was left unfinished and is likely a bug. This is not a priming decorator.
+Note that the line count of spinner_thread.py and spinner_asyncio.py is nearly the same. The supervisor functions are the heart of these examples. Let’s compare them in detail.  
+    注意spinner_thread.py与spinner_asyncio.py的行数很接近。supervisor函数都是各自的核心。接下来我们详细地对比他们。
 
-Note that the line count of spinner_thread.py and spinner_asyncio.py is nearly the same. The supervisor functions are the heart of these examples. Let’s compare them in detail. 
-Example 18-3 lists only the supervisor from the Threading example.
+Example 18-3 lists only the supervisor from the Threading example.  
+    示例18-3列出了只有线程示例的supervisor。
 
-Example 18-3. spinner_thread.py: the threaded supervisor function
+Example 18-3. spinner_thread.py: the threaded supervisor function  
+    例18-3. spinner_thread.py：线程式的supervisor函数
 
 ```python
 def supervisor():
@@ -265,9 +279,11 @@ def supervisor():
 
 ```
 
-For comparison, Example 18-4 shows the supervisor coroutine.
+For comparison, Example 18-4 shows the supervisor coroutine.  
+    为了对比，例18-4为协程式的supervisor
 
-Example 18-4. spinner_asyncio.py: the asynchronous supervisor coroutine
+Example 18-4. spinner_asyncio.py: the asynchronous supervisor coroutine  
+    例18-4 spinner_asyncio.py：异步的supervisor协程
 
 ```python
 
@@ -281,19 +297,32 @@ def supervisor():
 
 ```
 
-Here is a summary of the main differences to note between the two supervisor implementations:
-- An asyncio.Task is roughly the equivalent of a threading.Thread. Victor Stinner, special technical reviewer for this chapter, points out that “a Task is like a green thread in libraries that implement cooperative multitasking, such as gevent.”
-- A Task drives a coroutine, and a Thread invokes a callable.
-- You don’t instantiate Task objects yourself, you get them by passing a coroutine to asyncio.async(…) or loop.create_task(…).
-- When you get a Task object, it is already scheduled to run (e.g., by asyncio.async); a Thread instance must be explicitly told to run by calling its start method.
-- In the threaded supervisor, the slow_function is a plain function and is directly invoked by the thread. In the asyncio supervisor, slow_function is a coroutine driven by yield from.
-- There’s no API to terminate a thread from the outside, because a thread could be interrupted at any point, leaving the system in an invalid state. For tasks, there is the Task.cancel() instance method, which raises CancelledError inside the coroutine. The coroutine can deal with this by catching the exception in the yield where it’s suspended.
-- The supervisor coroutine must be executed with loop.run_until_complete in the main function.
+Here is a summary of the main differences to note between the two supervisor implementations:  
+    如下是这两种supervisor实现的主要区别的概要：
 
-This comparison should help you understand how concurrent jobs are orchestrated with asyncio, in contrast to how it’s done with the more familiar Threading module.
+- An asyncio.Task is roughly the equivalent of a threading.Thread. Victor Stinner, special technical reviewer for this chapter, points out that “a Task is like a green thread in libraries that implement cooperative multitasking, such as gevent.”  
+    一个asyncio.Task大约等价于一个threading.Thread。本章的特别技术审查员Victor Stinner指出，“一个Task就像是完成协作多任务的库中一条绿色的线程，诸如gevent”。
+- A Task drives a coroutine, and a Thread invokes a callable.  
+    一个Task驱动一条协程，一条线程调用一个可调用对象。
+- You don’t instantiate Task objects yourself, you get them by passing a coroutine to asyncio.async(…) or loop.create_task(…).  
+    你不能自行实例化Task对象，你需要通过将协程传入asyncio.async()或loop.create_task()这种方式来获取他。
+- When you get a Task object, it is already scheduled to run (e.g., by asyncio.async); a Thread instance must be explicitly told to run by calling its start method.  
+    当你获取到一个Task对象，他已经被计划好了运行时机（如 通过asyncio.async）；一个线程实例必须通过调用它的start方法，明确通知其运行。
+- In the threaded supervisor, the slow_function is a plain function and is directly invoked by the thread. In the asyncio supervisor, slow_function is a coroutine driven by yield from.  
+    在线程式的supervisor中，slow_function是一个单纯的函数，他直接被线程所调用。在asyncio supervisor中，slow_function是一个由yield from所驱动的协程。
+- There’s no API to terminate a thread from the outside, because a thread could be interrupted at any point, leaving the system in an invalid state. For tasks, there is the Task.cancel() instance method, which raises CancelledError inside the coroutine. The coroutine can deal with this by catching the exception in the yield where it’s suspended.  
+    外部没有终止线程的API，因为一条线程可以在任意节点被中断，使系统处于无效状态。对tasks来说，对应的是Task.cancel()实例方法，他会在协程内部抛出CancelledError。协程可以通过捕捉暂停位置yield内的异常，来处理这个问题。
+- The supervisor coroutine must be executed with loop.run_until_complete in the main function.  
+    supervisor协程必须被main函数中的loop.run_until_complete执行。
 
-One final point related to threads versus coroutines: if you’ve done any nontrivial programming with threads, you know how challenging it is to reason about the program because the scheduler can interrupt a thread at any time. You must remember to hold locks to protect the critical sections of your program, to avoid getting interrupted in the middle of a multistep operation—which could leave data in an invalid state.
+This comparison should help you understand how concurrent jobs are orchestrated with asyncio, in contrast to how it’s done with the more familiar Threading module.  
+    这些对比应该会帮你理解如何通过asyncio来协调并发工作，与使用我们更熟悉的Threading模块的方式形成对比。
 
-With coroutines, everything is protected against interruption by default. You must explicitly yield to let the rest of the program run. Instead of holding locks to synchronize the operations of multiple threads, you have coroutines that are “synchronized” by definition: only one of them is running at any time. And when you want to give up control, you use yield or yield from to give control back to the scheduler. That’s why it is possible to safely cancel a coroutine: by definition, a coroutine can only be cancelled when it’s suspended at a yield point, so you can perform cleanup by handling the CancelledError exception.
+One final point related to threads versus coroutines: if you’ve done any nontrivial programming with threads, you know how challenging it is to reason about the program because the scheduler can interrupt a thread at any time. You must remember to hold locks to protect the critical sections of your program, to avoid getting interrupted in the middle of a multistep operation—which could leave data in an invalid state.  
+    关于线程vs协程的最后一点：如果你用线程做过任何重要的编程工作，你会知道对这个程序进行推理多具有挑战性，因为调度器可以在任意时间中断线程。你必须记住为你程序中关键的部分上锁来进行保护，这样避免在多步骤操作中间被中断——这可能让数据处于无效状态。
 
-We’ll now see how the asyncio.Future class differs from the concurrent.futures.Future class we saw in Chapter 17.
+With coroutines, everything is protected against interruption by default. You must explicitly yield to let the rest of the program run. Instead of holding locks to synchronize the operations of multiple threads, you have coroutines that are “synchronized” by definition: only one of them is running at any time. And when you want to give up control, you use yield or yield from to give control back to the scheduler. That’s why it is possible to safely cancel a coroutine: by definition, a coroutine can only be cancelled when it’s suspended at a yield point, so you can perform cleanup by handling the CancelledError exception.  
+    对协程来说，默认情况下所有内容都被保护不被中断。你必须明确地让步，让程序的其余部分运行。与多线程中用锁来同步操作不同，协程在定义之初即为“同步的”：任意时间点时只有其中一个在运行。当你想要放弃控制，你可以用yield或yield from让控制权交还至调度器。这就是取消一个协程可能是安全的原因：由于定义，一个协程只能在yield阶段暂停时被取消，所以你可以通过控制CancelledError异常来执行清理。
+
+We’ll now see how the asyncio.Future class differs from the concurrent.futures.Future class we saw in Chapter 17.  
+    我们现在将看到asyncio.Future类与17章的concurrent.futures.Future类有何不同。
