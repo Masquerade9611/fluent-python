@@ -326,3 +326,37 @@ With coroutines, everything is protected against interruption by default. You mu
 
 We’ll now see how the asyncio.Future class differs from the concurrent.futures.Future class we saw in Chapter 17.  
     我们现在将看到asyncio.Future类与17章的concurrent.futures.Future类有何不同。
+
+## asyncio.Future: Nonblocking by Design
+## asyncio.Future: 设计无阻塞
+
+The asyncio.Future and the concurrent.futures.Future classes have mostly the same interface, but are implemented differently and are not interchangeable. PEP-3156 — Asynchronous IO Support Rebooted: the “asyncio” Module has this to say about this unfortunate situation:
+    asyncio.Future与concurrent.futures.Future类有着几乎相同的接口，但是各自实现方式不同且不能交换使用。PEP-3156 —— 异步IO支持：关于这个不幸的情况，“asyncio”模块作了如下说明：
+
+    In the future (pun intended) we may unify asyncio.Future and concurrent.futures.Future (e.g., by adding an __iter__ method to the latter that works with yield from).
+    在future（一语双关）中，我们可能将asyncio.Future和concurrent.futures.Future（例如，通过向后者添加__iter__方法，与yield from共同作用）。
+
+As mentioned in “Where Are the Futures?” on page 511, futures are created only as the result of scheduling something for execution. In asyncio, BaseEventLoop.create_task(…) takes a coroutine, schedules it to run, and returns an asyncio.Task instance—which is also an instance of asyncio.Future because Task is a subclass of Future designed to wrap a coroutine. This is analogous to how we create concurrent.futures.Future instances by invoking Executor.submit(…).  
+    511页的“Where Are the Futures?”中提到，futures仅作为规划执行的执行结果所创建。在asyncio中，BaseEventLoop.create_task(…)创建一个协程，然后规划他执行，最终返回一个asyncio.Task实例——这也是asyncio.Future的一个实例，因为Task是Future的子类，用来包装协程。这与我们通过调用Executor.submit(…)来创建concurrent.futures.Future实例的方式是类似的。
+
+Like its concurrent.futures.Future counterpart, the asyncio.Future class provides .done(), .add_done_callback(…), and .results() methods, among others. The first two methods work as described in “Where Are the Futures?” on page 511, but .result() is very different. In asyncio.Future, the .result() method takes no arguments, so you can’t specify a timeout. Also, if you call .result() and the future is not done, it does not block waiting for the result. Instead, an asyncio.InvalidStateError is raised.
+However, the usual way to get the result of an asyncio.Future is to yield from it, as we’ll see in Example 18-8.  
+    比如与concurrent.futures.Future对应的asyncio.Future类提供了.done()，.add_done_callback(…)与.result()方法等。前两个方法在511页的“Where Are the Futures?”有描述，但.result()不同。在asyncio.Future中，.result()方法不需要参数，所以你不能指定timeout。作为代替，会抛出InvalidStateError。但是，获取asyncio.Future结果的通常方式是yield from他，正如我们将在示例18-8中看到的。
+
+Using yield from with a future automatically takes care of waiting for it to finish, without blocking the event loop—because in asyncio, yield from is used to give control back to the event loop. Note that using yield from with a future is the coroutine equivalent of the functionality offered by add_done_callback: instead of triggering a callback, when the delayed operation is done, the event loop sets the result of the future, and the yield from expression produces a return value inside our suspended coroutine, allowing it to resume.  
+    对future自动使用yield from需要注意等他结束不阻塞事件循环——因为在asyncio中，yield from被用于将控制流交还给事件循环。注意，对一个future使用yield from相当于由add_done_callback提供功能的协程：为了取代触发回调，当延迟操作完成，事件循环设置future的结果，然后yield from表达式在我们暂停的协程中产出一个返回值，允许他恢复。
+
+In summary, because asyncio.Future is designed to work with yield from, these methods are often not needed:  
+    总而言之，因为asyncio.Future被定义为使用yield from运作，通常不需要这些方法：
+
+- You don’t need my_future.add_done_callback(…) because you can simply put whatever processing you would do after the future is done in the lines that follow yield from my_future in your coroutine. That’s the big advantage of having coroutines: functions that can be suspended and resumed.  
+    不需要my_future.add_done_callback(…)，因为你可以在自己的协程中yield from my_future行的后面，简单地指定future结束后要做的任何事情。这是一个巨大优势：函数可以被暂停和恢复。
+
+- You don’t need my_future.result() because the value of a yield from expression on a future is the result (e.g., result = yield from my_future).
+    不需要my_future.result()，因为在future上使用yield from表达式的值就是结果。（如，result = yield from my_future）。
+
+Of course, there are situations in which .done(), .add_done_callback(…), and .results() are useful. But in normal usage, asyncio futures are driven by yield from, not by calling those methods.  
+    当然，在某些情况下.done()，.add_done_callback(…)与.result()还是有用的。但通常使用下，asyncio futures是被yield from所驱动，而不是通过上面这些方法。
+
+We’ll now consider how yield from and the asyncio API brings together futures, tasks, and coroutines.  
+    我们现在思考一下yield from与asyncio API如何将futures，tasks与coroutines结合起来。
