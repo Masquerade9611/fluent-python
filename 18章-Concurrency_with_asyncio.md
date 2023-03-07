@@ -360,3 +360,50 @@ Of course, there are situations in which .done(), .add_done_callback(…), and .
 
 We’ll now consider how yield from and the asyncio API brings together futures, tasks, and coroutines.  
     我们现在思考一下yield from与asyncio API如何将futures，tasks与coroutines结合起来。
+
+## Yielding from Futures, Tasks, and Coroutines
+
+In asyncio, there is a close relationship between futures and coroutines because you can get the result of an asyncio.Future by yielding from it. This means that res = yield from foo() works if foo is a coroutine function (therefore it returns a coroutine object when called) or if foo is a plain function that returns a Future or Task instance.This is one of the reasons why coroutines and futures are interchangeable in many parts of the asyncio API.  
+    在asyncio中，futures与协程有着密切的关系，因为你可以通过yield from asyncio.Future来获取他的结果。这意味着res = yield from foo()工作方式：如果foo是一个协程函数（因此当被调用时返回一个协程对象），或foo是一个单纯的函数，他会返回一个Future或Task实例。这是协程与future在许多asyncio API中可以交互使用的原因之一。
+
+In order to execute, a coroutine must be scheduled, and then it’s wrapped in an asyncio.Task. Given a coroutine, there are two main ways of obtaining a Task:  
+    为了执行，一个协程必须被规划好，然后被包装进asyncio.Task中。给定一个协程，有如下两种主要方式来获取Task：
+
+asyncio.async(coro_or_future, *, loop=None)
+    This function unifies coroutines and futures: the first argument can be either one. If it’s a Future or Task, it’s returned unchanged. If it’s a coroutine, async calls loop.create_task(…) on it to create a Task. An optional event loop may be passed as the loop= keyword argument; if omitted, async gets the loop object by calling asyncio.get_event_loop().  
+    该函数将协程与future统一起来：首个参数可以是二者间任意一个。如果是Future或Task，原样返回。如果是协程，async对其调用loop.create_task(…)来创建Task。可以传入一个可选的事件循环，作为loop = keyword参数；如果省略，async通过调用asyncio.get_event_loop()来获取循环对象。
+
+BaseEventLoop.create_task(coro)
+    This method schedules the coroutine for execution and returns an asyncio.Task object. If called on a custom subclass of BaseEventLoop, the object returned may be an instance of some other Task-compatible class provided by an external library (e.g., Tornado).  
+    该函数规划了协程的执行并返回一个asyncio.Task对象。如果在BaseEventLoop的自定义子类上调用，返回的对象可能是一些其他Task的实例——有一个额外库提供的兼容类（如Tornado）。
+
+    BaseEventLoop.create_task(…) is only available in Python 3.4.2 or later. If you’re using an older version of Python 3.3 or 3.4, you need to use asyncio.async(…), or install a more recent version of asyncio from PyPI.  
+    BaseEventLoop.create_task(…)仅在Python3.4.2及之后的版本支持。如果你使用Python3.3或3.4之前的版本，你需要用asyncio.async(…)，或从PyPI安装更近版本的asyncio。
+
+Several asyncio functions accept coroutines and wrap them in asyncio.Task objects automatically, using asyncio.async internally. One example is BaseEventLoop.run_until_complete(…).  
+    各种asyncio方法接受协程，并使用内置的asyncio.async自动将他们包装进asyncio.Task对象中。BaseEventLoop.run_until_complete(…)就是一个例子。
+
+If you want to experiment with futures and coroutines on the Python console or in small tests, you can use the following snippet:[3]  
+    如果你想要在Python控制台或小型测试中实验future与协程，你可以使用如下的片段：[3]
+
+```
+
+>>> import asyncio
+>>> def run_sync(coro_or_future):
+...     loop = asyncio.get_event_loop()
+...     return loop.run_until_complete(coro_or_future)
+...
+>>> a = run_sync(some_coroutine())
+```
+
+The relationship between coroutines, futures, and tasks is documented in section 18.5.3. Tasks and coroutines of the asyncio documentation, where you’ll find this note:  
+    18.5.3小节记录了协程，future与task的关系。asycnio文档的Task与coroutine，在那里你会发现如下的注释：
+`
+    In this documentation, some methods are documented as coroutines, even if they are plain Python functions returning a Future. This is intentional to have a freedom of tweaking the implementation of these functions in the future.  
+    在此文档中，一些方法被当做协程记录，甚至他们只是返回Future的普通Python函数。这是有意为之的，为了将来可以自由调整这些函数的实现。
+
+[3]. Suggested by Petr Viktorin in a September 11, 2014, message to the Python-ideas list.  
+    这是由Petr Viktorin在2014年9月11日给Python-indeas提出的。
+
+Having covered these fundamentals, we’ll now study the code for the asynchronous flag download script flags_asyncio.py demonstrated along with the sequential and thread pool scripts in Example 17-1 (Chapter 17).  
+    在介绍这些基础后，我们现在学习示例17-1演示的的异步flag下载脚本flags_asyncio.py，以及顺序和线程池的脚本。
