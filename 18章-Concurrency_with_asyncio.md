@@ -327,8 +327,8 @@ With coroutines, everything is protected against interruption by default. You mu
 We’ll now see how the asyncio.Future class differs from the concurrent.futures.Future class we saw in Chapter 17.  
     我们现在将看到asyncio.Future类与17章的concurrent.futures.Future类有何不同。
 
-## asyncio.Future: Nonblocking by Design
-## asyncio.Future: 设计无阻塞
+### asyncio.Future: Nonblocking by Design
+### asyncio.Future: 设计无阻塞
 
 The asyncio.Future and the concurrent.futures.Future classes have mostly the same interface, but are implemented differently and are not interchangeable. PEP-3156 — Asynchronous IO Support Rebooted: the “asyncio” Module has this to say about this unfortunate situation:
     asyncio.Future与concurrent.futures.Future类有着几乎相同的接口，但是各自实现方式不同且不能交换使用。PEP-3156 —— 异步IO支持：关于这个不幸的情况，“asyncio”模块作了如下说明：
@@ -361,7 +361,7 @@ Of course, there are situations in which .done(), .add_done_callback(…), and .
 We’ll now consider how yield from and the asyncio API brings together futures, tasks, and coroutines.  
     我们现在思考一下yield from与asyncio API如何将futures，tasks与coroutines结合起来。
 
-## Yielding from Futures, Tasks, and Coroutines
+### Yielding from Futures, Tasks, and Coroutines
 
 In asyncio, there is a close relationship between futures and coroutines because you can get the result of an asyncio.Future by yielding from it. This means that res = yield from foo() works if foo is a coroutine function (therefore it returns a coroutine object when called) or if foo is a plain function that returns a Future or Task instance.This is one of the reasons why coroutines and futures are interchangeable in many parts of the asyncio API.  
     在asyncio中，futures与协程有着密切的关系，因为你可以通过yield from asyncio.Future来获取他的结果。这意味着res = yield from foo()工作方式：如果foo是一个协程函数（因此当被调用时返回一个协程对象），或foo是一个单纯的函数，他会返回一个Future或Task实例。这是协程与future在许多asyncio API中可以交互使用的原因之一。
@@ -407,3 +407,129 @@ The relationship between coroutines, futures, and tasks is documented in section
 
 Having covered these fundamentals, we’ll now study the code for the asynchronous flag download script flags_asyncio.py demonstrated along with the sequential and thread pool scripts in Example 17-1 (Chapter 17).  
     在介绍这些基础后，我们现在学习示例17-1演示的的异步flag下载脚本flags_asyncio.py，以及顺序和线程池的脚本。
+
+## Downloading with asyncio and aiohttp
+
+As of Python 3.4, asyncio only supports TCP and UDP directly. For HTTP or any other protocol, we need third-party packages; aiohttp is the one everyone seems to be using for asyncio HTTP clients and servers at this time.  
+    自Python3.4起，asyncio只直接支持TCP与UDP。对HTTP及其他协议，我们需要用到三方库：aiohttp是每个人目前被用作asyncio HTTP客户端与服务端的那个库。
+
+Example 18-5 is the full listing for the flag downloading script flags_asyncio.py. Here is a high-level view of how it works:  
+    例18-5是flag下载脚本flags_asyncio.py的完整列表。这里是他工作方式的高级视图：
+
+1. We start the process in download_many by feeding the event loop with several coroutine objects produced by calling download_one.  
+    在download_many中，通过调用download_one并将其产出的各种协程传入事件循环，以启动流程。
+2. The asyncio event loop activates each coroutine in turn.  
+    asyncio事件循环依次激活每个协程。
+3. When a client coroutine such as get_flag uses yield from to delegate to a library coroutine—such as aiohttp.request—control goes back to the event loop, which can execute another previously scheduled coroutine.  
+    当诸如get_flag的一个客户端协程使用yield from来委托给一个库协程（如aiohttp.request）时，控制权交还给事件循环，事件循环可以执行任意之前规划好的协程。
+4. The event loop uses low-level APIs based on callbacks to get notified when a blocking operation is completed.  
+    事件循环使用基于回调的低级API，来在阻塞操作完成时获取到通知。
+5. When that happens, the main loop sends a result to the suspended coroutine.  
+    当发生这种情况时，主循环向暂停的协程send结果。
+6. The coroutine then advances to the next yield, for example, yield from resp.read() in get_flag. The event loop takes charge again. Steps 4, 5, and 6 repeat until the event loop is terminated.  
+    然后协程推进到下一个yield，举个例子，get_flag中的yield from resp.read()。事件循环再次获取控制权，重复4，5，6知道事件循环结束。
+
+This is similar to the example we looked at in “The Taxi Fleet Simulation” on page 490, where a main loop started several taxi processes in turn. As each taxi process yielded, the main loop scheduled the next event for that taxi (to happen in the future), and proceeded to activate the next taxi in the queue. The taxi simulation is much simpler, and you can easily understand its main loop. But the general flow is the same as in asyncio: a single-threaded program where a main loop activates queued coroutines one by one. Each coroutine advances a few steps, then yields control back to the main loop, which then activates the next coroutine in the queue.  
+
+Now let’s review Example 18-5 play by play.  
+
+Example 18-5. flags_asyncio.py: asynchronous download script with asyncio and aiohttp
+
+```python
+import asyncio
+import aiohttp  # 1
+
+from flags import BASE_URL, save_flag, show, main  # 2
+
+@asyncio.coroutine  # 3
+def get_flag(cc):
+    url = '{}/{cc}/{cc}.gif'.format(BASE_URL, cc=cc.lower())
+    resp = yield from aiohttp.request('GET', url)  # 4
+    image = yield from resp.read()  # 5
+    return image
+
+
+@asyncio.coroutine
+def download_one(cc):  # 6
+    image = yield from get_flag(cc)  # 7
+    show(cc)
+    save_flag(image, cc.lower() + '.gif')
+    return cc
+
+
+def download_many(cc_list):
+    loop = asyncio.get_event_loop()  # 8
+    to_do = [download_one(cc) for cc in sorted(cc_list)]  # 9
+    wait_coro = asyncio.wait(to_do)  # 10
+    res, _ = loop.run_until_complete(wait_coro)  # 11
+    loop.close()  # 12
+    return len(res)
+
+
+if __name__ == '__main__':
+    main(download_many)
+```
+
+1. aiohttp must be installed—it’s not in the standard library.
+2. Reuse some functions from the flags module (Example 17-2).
+3. Coroutines should be decorated with @asyncio.coroutine.
+4. Blocking operations are implemented as coroutines, and your code delegates to them via yield from so they run asynchronously.
+5. Reading the response contents is a separate asynchronous operation.
+6. download_one must also be a coroutine, because it uses yield from.
+7. The only difference from the sequential implementation of download_one are the words yield from in this line; the rest of the function body is exactly as before.
+8. Get a reference to the underlying event-loop implementation.
+9. Build a list of generator objects by calling the download_one function once for each flag to be retrieved.
+10. Despite its name, wait is not a blocking function. It’s a coroutine that completes when all the coroutines passed to it are done (that’s the default behavior of wait; see explanation after this example).
+11. Execute the event loop until wait_coro is done; thisis where the script will block while the event loop runs. We ignore the second item returned by run_until_complete. The reason is explained next.
+12. Shut down the event loop.
+
+`
+    It would be nice if event loop instances were context managers, so we could use a with block to make sure the loop is closed. However, the situation is complicated by the fact that client code never creates the event loop directly, but gets a reference to it by calling asyncio.get_event_loop(). Sometimes our code does not “own” the event loop, so it would be wrong to close it. For example, when using an external GUI event loop with a package like Quamash, the Qt library is responsible for shutting down the loop when the application quits.
+
+The asyncio.wait(…) coroutine accepts an iterable of futures or coroutines; waitwraps each coroutine in a Task. The end result is that all objects managed by wait become instances of Future, one way or another. Because it is a coroutine function, calling wait(…) returns a coroutine/generator object; this is what the wait_coro variable holds.To drive the coroutine, we pass it to loop.run_until_complete(…).  
+
+The loop.run_until_complete function accepts a future or a coroutine. If it gets a coroutine, run_until_complete wraps it into a Task, similar to what wait does. Coroutines, futures, and tasks can all be driven by yield from, and this is what run_until_complete does with the wait_coro object returned by the wait call. When wait_coro runs to completion, it returns a 2-tuple where the first item is the set of completed futures, and the second is the set of those not completed. In Example 18-5, the second set will always be empty—that’s why we explicitly ignore it by assigning to _. But wait accepts two keyword-only arguments that may cause it to return even if some of the futures are not complete: timeout and return_when. See the asyncio.wait documentation for details.  
+
+Note that in Example 18-5 I could not reuse the get_flag function from flags.py (Example 17-2) because that uses the requests library, which performs blocking I/O. To leverage asyncio, we must replace every function that hits the network with an asynchronous version that is invoked with yield from, so that control is given back to the event loop. Using yield from in get_flag means that it must be driven as a coroutine.  
+
+That’s why I could not reuse the download_one function from flags_threadpool.py (Example 17-3) either. The code in Example 18-5 drives get_flag with yield_from, so download_one is itself also a coroutine. For each request, a download_one coroutine object is created in download_many, and they are all driven by the loop.run_until_complete function, after being wrapped by the asyncio.wait coroutine.  
+
+There are a lot of new concepts to grasp in asyncio but the overall logic of Example 18-5 is easy to follow if you employ a trick suggested by Guido van Rossum himself: squint and pretend the yield from keywords are not there. If you do that, you’ll notice that the code is as easy to read as plain old sequential code.
+
+For example, imagine that the body of this coroutine…
+
+```python
+@asyncio.coroutine
+def get_flag(cc):
+    url = '{}/{cc}/{cc}.gif'.format(BASE_URL, cc=cc.lower())
+    resp = yield from aiohttp.request('GET', url)
+    image = yield from resp.read()
+    return image
+```
+
+…works like the following function, except that it never blocks:
+
+```python
+def get_flag(cc):
+    url = '{}/{cc}/{cc}.gif'.format(BASE_URL, cc=cc.lower())
+    resp = aiohttp.request('GET', url)
+    image = resp.read()
+    return image
+```
+
+Using the yield from foo syntax avoids blocking because the current coroutine is suspended (i.e., the delegating generator where the yield from code is), but the control flow goes back to the event loop, which can drive other coroutines. When the foo future or coroutine is done, it returns a result to the suspended coroutine, resuming it.
+
+At the end of the section “Using yield from” on page 477, I stated two facts about every usage of yield from. Here they are, summarized:
+
+- Every arrangement of coroutines chained with yield from must be ultimately driven by a caller that is not a coroutine, which invokes next(…) or .send(…) on the outermost delegating generator, explicitly or implicitly (e.g., in a for loop).
+- The innermost subgenerator in the chain must be a simple generator that uses just yield—or an iterable object.
+
+When using yield from with the asyncio API, both facts remain true, with the following specifics:
+
+- The coroutine chains we write are always driven by passing our outermost delegating generator to an asyncio API call, such as loop.run_until_complete(…). In other words, when using asyncio our code doesn’t drive a coroutine chain by calling next(…) or .send(…) on it—the asyncio event loop does that.
+- The coroutine chains we write always end by delegating with yield from to some asyncio coroutine function or coroutine method (e.g., yield from asyncio.sleep(…) in Example 18-2) or coroutines from libraries that implement higher-level protocols (e.g., resp = yield from aiohttp.request('GET', url) in the get_flag coroutine of Example 18-5).  In other words, the innermost subgenerator will be a library function that does the actual I/O, not something we write.
+
+To summarize: as we use asyncio, our asynchronous code consists of coroutines that are delegating generators driven by asyncio itself and that ultimately delegate to asyncio library coroutines—possibly by way of some third-party library such as aiohttp. This arrangement creates pipelines where the asyncio event loop drives—through our coroutines—the library functions that perform the low-level asynchronous I/O.  
+We are now ready to answer one question raised in Chapter 17:
+
+- How can flags_asyncio.py perform 5× faster than flags.py when both are single threaded?
