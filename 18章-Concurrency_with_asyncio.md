@@ -430,10 +430,13 @@ Example 18-5 is the full listing for the flag downloading script flags_asyncio.p
     然后协程推进到下一个yield，举个例子，get_flag中的yield from resp.read()。事件循环再次获取控制权，重复4，5，6知道事件循环结束。
 
 This is similar to the example we looked at in “The Taxi Fleet Simulation” on page 490, where a main loop started several taxi processes in turn. As each taxi process yielded, the main loop scheduled the next event for that taxi (to happen in the future), and proceeded to activate the next taxi in the queue. The taxi simulation is much simpler, and you can easily understand its main loop. But the general flow is the same as in asyncio: a single-threaded program where a main loop activates queued coroutines one by one. Each coroutine advances a few steps, then yields control back to the main loop, which then activates the next coroutine in the queue.  
+    这和我们在490页看到的“Taxi车队模拟”很类似，有一个主循环不断循环启动各种taxi进程。当任意taxi进程被产出，主循环会为该taxi（在将来发生）规划下一个事件，然后继续激活队列中的下一个taxi。这个taxi模型很简单，你可以很轻易理解他的主循环。但是通常的流程与asyncio类似：一个单独的线程程序，其中的主循环逐个激活队列中的协程。每个协程推进一小段，然后yield控制交还给主循环，继而激活队列的下一个协程。
 
 Now let’s review Example 18-5 play by play.  
+    现在我们详细解析下例18-5
 
-Example 18-5. flags_asyncio.py: asynchronous download script with asyncio and aiohttp
+Example 18-5. flags_asyncio.py: asynchronous download script with asyncio and aiohttp  
+    例18-5. flags_asyncio.py：使用asyncio与aiohttp的异步下载脚本
 
 ```python
 import asyncio
@@ -470,18 +473,30 @@ if __name__ == '__main__':
     main(download_many)
 ```
 
-1. aiohttp must be installed—it’s not in the standard library.
-2. Reuse some functions from the flags module (Example 17-2).
-3. Coroutines should be decorated with @asyncio.coroutine.
-4. Blocking operations are implemented as coroutines, and your code delegates to them via yield from so they run asynchronously.
-5. Reading the response contents is a separate asynchronous operation.
-6. download_one must also be a coroutine, because it uses yield from.
-7. The only difference from the sequential implementation of download_one are the words yield from in this line; the rest of the function body is exactly as before.
-8. Get a reference to the underlying event-loop implementation.
-9. Build a list of generator objects by calling the download_one function once for each flag to be retrieved.
-10. Despite its name, wait is not a blocking function. It’s a coroutine that completes when all the coroutines passed to it are done (that’s the default behavior of wait; see explanation after this example).
-11. Execute the event loop until wait_coro is done; thisis where the script will block while the event loop runs. We ignore the second item returned by run_until_complete. The reason is explained next.
-12. Shut down the event loop.
+1. aiohttp must be installed—it’s not in the standard library.  
+    aiohttp需要安装，这不是标准库。
+2. Reuse some functions from the flags module (Example 17-2).  
+    复用flags模块中部分函数。
+3. Coroutines should be decorated with @asyncio.coroutine.  
+    协程需要使用@asyncio.coroutine装饰器。
+4. Blocking operations are implemented as coroutines, and your code delegates to them via yield from so they run asynchronously.  
+    阻塞操作被实现为协程，你的代码必须通过yield from委托给他们，所以他们是异步运行的。
+5. Reading the response contents is a separate asynchronous operation.  
+    读取响应内容是一个单独的异步操作。
+6. download_one must also be a coroutine, because it uses yield from.  
+    download_one也必须是协程，因为他使用了yield from。
+7. The only difference from the sequential implementation of download_one are the words yield from in this line; the rest of the function body is exactly as before.  
+    与顺序下载的download_one唯一的不同是本行的yield from；函数中其他部分与之前完全一致。
+8. Get a reference to the underlying event-loop implementation.  
+    获取对底层事件循环的引用。
+9. Build a list of generator objects by calling the download_one function once for each flag to be retrieved.  
+    构建一个生成器对象的列表，通过为每个要检索的flag调用download_one函数。
+10. Despite its name, wait is not a blocking function. It’s a coroutine that completes when all the coroutines passed to it are done (that’s the default behavior of wait; see explanation after this example).  
+    尽管他的名字有wait，但这不是一个阻塞函数。他是一个协程，当所有传给他的协程都已完成时，该协程完成（这是wait的默认应为；看看下面的说明）。
+11. Execute the event loop until wait_coro is done; this is where the script will block while the event loop runs. We ignore the second item returned by run_until_complete. The reason is explained next.  
+    执行事件循环直到wait_coro完成；在事件循环运行的阶段，脚本将阻塞在这里。我们由run_until_complete返回的第二项。下面解释原因。
+12. Shut down the event loop.  
+    关闭事件循环。
 
 `
     It would be nice if event loop instances were context managers, so we could use a with block to make sure the loop is closed. However, the situation is complicated by the fact that client code never creates the event loop directly, but gets a reference to it by calling asyncio.get_event_loop(). Sometimes our code does not “own” the event loop, so it would be wrong to close it. For example, when using an external GUI event loop with a package like Quamash, the Qt library is responsible for shutting down the loop when the application quits.
