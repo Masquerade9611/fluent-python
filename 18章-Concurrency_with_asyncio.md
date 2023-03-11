@@ -474,7 +474,7 @@ if __name__ == '__main__':
 ```
 
 1. aiohttp must be installed—it’s not in the standard library.  
-    aiohttp需要安装，这不是标准库。
+    aiohttp需要安装，不是标准库。
 2. Reuse some functions from the flags module (Example 17-2).  
     复用flags模块中部分函数。
 3. Coroutines should be decorated with @asyncio.coroutine.  
@@ -492,22 +492,27 @@ if __name__ == '__main__':
 9. Build a list of generator objects by calling the download_one function once for each flag to be retrieved.  
     构建一个生成器对象的列表，通过为每个要检索的flag调用download_one函数。
 10. Despite its name, wait is not a blocking function. It’s a coroutine that completes when all the coroutines passed to it are done (that’s the default behavior of wait; see explanation after this example).  
-    尽管他的名字有wait，但这不是一个阻塞函数。他是一个协程，当所有传给他的协程都已完成时，该协程完成（这是wait的默认应为；看看下面的说明）。
+    尽管他的名字有wait，但这不是一个阻塞函数。他是一个协程，当所有传给他的协程都已完成时，该协程完成（这是wait的默认行为；看看下面的说明）。
 11. Execute the event loop until wait_coro is done; this is where the script will block while the event loop runs. We ignore the second item returned by run_until_complete. The reason is explained next.  
     执行事件循环直到wait_coro完成；在事件循环运行的阶段，脚本将阻塞在这里。我们由run_until_complete返回的第二项。下面解释原因。
 12. Shut down the event loop.  
     关闭事件循环。
 
 `
-    It would be nice if event loop instances were context managers, so we could use a with block to make sure the loop is closed. However, the situation is complicated by the fact that client code never creates the event loop directly, but gets a reference to it by calling asyncio.get_event_loop(). Sometimes our code does not “own” the event loop, so it would be wrong to close it. For example, when using an external GUI event loop with a package like Quamash, the Qt library is responsible for shutting down the loop when the application quits.
+    It would be nice if event loop instances were context managers, so we could use a with block to make sure the loop is closed. However, the situation is complicated by the fact that client code never creates the event loop directly, but gets a reference to it by calling asyncio.get_event_loop(). Sometimes our code does not “own” the event loop, so it would be wrong to close it. For example, when using an external GUI event loop with a package like Quamash, the Qt library is responsible for shutting down the loop when the application quits.  
+    如果事件循环实例是上下文控制器就太好了，我们可以用一个with模块来保证循环的关闭。但是这种情况在客户代码未直接创建事件循环时会变得复杂，不过可以通过asyncio.get_event_loop()来获取他的引用。然而，由于客户端代码从不直接创建事件循环，而是通过调用asyncio.get_event_loop()获取对它的引用，因此情况变得复杂了。有时候我们的代码并不“拥有”事件循环，所以关闭他的时候可能会出问题。举个例子，当通过某个像Quamash的库使用了一个外部GUI事件循环，Qt库负责在应用退出时关闭这个循环。
 
-The asyncio.wait(…) coroutine accepts an iterable of futures or coroutines; waitwraps each coroutine in a Task. The end result is that all objects managed by wait become instances of Future, one way or another. Because it is a coroutine function, calling wait(…) returns a coroutine/generator object; this is what the wait_coro variable holds.To drive the coroutine, we pass it to loop.run_until_complete(…).  
+The asyncio.wait(…) coroutine accepts an iterable of futures or coroutines; wait wraps each coroutine in a Task. The end result is that all objects managed by wait become instances of Future, one way or another. Because it is a coroutine function, calling wait(…) returns a coroutine/generator object; this is what the wait_coro variable holds.To drive the coroutine, we pass it to loop.run_until_complete(…).  
+    asyncio.wait(…)协程接受一个由future或协程组成的可迭代对象；wait将每个协程包装进Task。最终的结果是所有由wait管理的对象都以某种方式成为了Future的实例。因为这是一个协程函数，调用wait(…)会返回一个协程/生成器对象；这就是wait_coro变量包含的内容。为了驱动协程，我们将他传入loop.run_until_complete(…)。
 
 The loop.run_until_complete function accepts a future or a coroutine. If it gets a coroutine, run_until_complete wraps it into a Task, similar to what wait does. Coroutines, futures, and tasks can all be driven by yield from, and this is what run_until_complete does with the wait_coro object returned by the wait call. When wait_coro runs to completion, it returns a 2-tuple where the first item is the set of completed futures, and the second is the set of those not completed. In Example 18-5, the second set will always be empty—that’s why we explicitly ignore it by assigning to _. But wait accepts two keyword-only arguments that may cause it to return even if some of the futures are not complete: timeout and return_when. See the asyncio.wait documentation for details.  
+    loop.run_until_complete函数接收一个future或一个协程。如果获取到协程，run_until_complete会将他包装进Task，这与wait所做的类似。协程，future与task这三者都可以被yield from所驱动，这就是run_until_complete与wait_coro对象（有wait调用所返回）所做的工作。当wait_coro运行完成，他会返回一个二元的元组，第一个值是已完成future的集合，第二个值是哪些没有完成的集合。在示例18-5中，第二个几个总是为空——这是因为我们通过将其赋值给_来显式地忽略这一项。但是 wait 接受两个仅包含关键字的参数，即使某些futures未完成也可能导致它返回：timeout和return_when。
 
 Note that in Example 18-5 I could not reuse the get_flag function from flags.py (Example 17-2) because that uses the requests library, which performs blocking I/O. To leverage asyncio, we must replace every function that hits the network with an asynchronous version that is invoked with yield from, so that control is given back to the event loop. Using yield from in get_flag means that it must be driven as a coroutine.  
+    注意，在18-5中我不能复用flags.py的get_flag函数（例17-2），因为它使用了requests库，这阻塞了I/O。要利用asyncio，我们必须将所有访问网络的函数都替换为一个异步版本，该异步版本通过yield from调用，以便控制权可以被交还给事件循环。在get_flag中使用yield from意味着他必须作为一个协程被驱动。
 
 That’s why I could not reuse the download_one function from flags_threadpool.py (Example 17-3) either. The code in Example 18-5 drives get_flag with yield_from, so download_one is itself also a coroutine. For each request, a download_one coroutine object is created in download_many, and they are all driven by the loop.run_until_complete function, after being wrapped by the asyncio.wait coroutine.  
+    这也是我没有复用例17-3 falgs_threadpool.py中download_one函数的原因。18-5的代码通过yield from驱动了get_flag，所以download_one本身也是一个协程。为了每次请求，一个download_one协程对象在download_many中创建，他们都在被 asyncio.wait 协程包装之后，由loop.run_until_complete所驱动。
 
 There are a lot of new concepts to grasp in asyncio but the overall logic of Example 18-5 is easy to follow if you employ a trick suggested by Guido van Rossum himself: squint and pretend the yield from keywords are not there. If you do that, you’ll notice that the code is as easy to read as plain old sequential code.
 
