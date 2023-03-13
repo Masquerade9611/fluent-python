@@ -514,9 +514,11 @@ Note that in Example 18-5 I could not reuse the get_flag function from flags.py 
 That’s why I could not reuse the download_one function from flags_threadpool.py (Example 17-3) either. The code in Example 18-5 drives get_flag with yield_from, so download_one is itself also a coroutine. For each request, a download_one coroutine object is created in download_many, and they are all driven by the loop.run_until_complete function, after being wrapped by the asyncio.wait coroutine.  
     这也是我没有复用例17-3 falgs_threadpool.py中download_one函数的原因。18-5的代码通过yield from驱动了get_flag，所以download_one本身也是一个协程。为了每次请求，一个download_one协程对象在download_many中创建，他们都在被 asyncio.wait 协程包装之后，由loop.run_until_complete所驱动。
 
-There are a lot of new concepts to grasp in asyncio but the overall logic of Example 18-5 is easy to follow if you employ a trick suggested by Guido van Rossum himself: squint and pretend the yield from keywords are not there. If you do that, you’ll notice that the code is as easy to read as plain old sequential code.
+There are a lot of new concepts to grasp in asyncio but the overall logic of Example 18-5 is easy to follow if you employ a trick suggested by Guido van Rossum himself: squint and pretend the yield from keywords are not there. If you do that, you’ll notice that the code is as easy to read as plain old sequential code.  
+    asyncio中有许多新概念需要掌握，但如果你使用Guido van Rossum他自己的小技巧：眯起眼睛，然后假装这里没有yield from，这样示例18-5的整体逻辑就很容易理解了。如果按这样做，你会发现代码像是简单的旧顺序代码一样容易阅读。
 
-For example, imagine that the body of this coroutine…
+For example, imagine that the body of this coroutine…  
+    例如，想想这个协程的结构体…
 
 ```python
 @asyncio.coroutine
@@ -527,7 +529,8 @@ def get_flag(cc):
     return image
 ```
 
-…works like the following function, except that it never blocks:
+…works like the following function, except that it never blocks:  
+    像是下面的函数一样运作，除了他不会阻塞外：
 
 ```python
 def get_flag(cc):
@@ -537,19 +540,29 @@ def get_flag(cc):
     return image
 ```
 
-Using the yield from foo syntax avoids blocking because the current coroutine is suspended (i.e., the delegating generator where the yield from code is), but the control flow goes back to the event loop, which can drive other coroutines. When the foo future or coroutine is done, it returns a result to the suspended coroutine, resuming it.
+Using the yield from foo syntax avoids blocking because the current coroutine is suspended (i.e., the delegating generator where the yield from code is), but the control flow goes back to the event loop, which can drive other coroutines. When the foo future or coroutine is done, it returns a result to the suspended coroutine, resuming it.  
+    使用yield from foo语法可以避免阻塞，因为当前协程被暂停了（也就是说，yield from代码所在的委托生成器），但控制流回归至事件循环，用来驱动其他协程。当foo future或协程执行结束，他会返回结果至挂起的协程来重启他。
 
-At the end of the section “Using yield from” on page 477, I stated two facts about every usage of yield from. Here they are, summarized:
+At the end of the section “Using yield from” on page 477, I stated two facts about every usage of yield from. Here they are, summarized:  
+    在477页“Using yield form”节的结尾，关于yield from的每一种用法我都陈述了两个事实。这里总结一下：
 
-- Every arrangement of coroutines chained with yield from must be ultimately driven by a caller that is not a coroutine, which invokes next(…) or .send(…) on the outermost delegating generator, explicitly or implicitly (e.g., in a for loop).
-- The innermost subgenerator in the chain must be a simple generator that uses just yield—or an iterable object.
+- Every arrangement of coroutines chained with yield from must be ultimately driven by a caller that is not a coroutine, which invokes next(…) or .send(…) on the outermost delegating generator, explicitly or implicitly (e.g., in a for loop).  
+    链接yield from与协程的每一次编排，最终必须由一个非协程的调用者所驱动，其在最外层的委托生成器上显示或隐式地调用next(…)或.send(…)（如 在一个for循环中）。
+- The innermost subgenerator in the chain must be a simple generator that uses just yield—or an iterable object.  
+    该链接中最内层的子生成器，必须是仅使用yield或一个可迭代对象的一个简单生成器。
 
-When using yield from with the asyncio API, both facts remain true, with the following specifics:
+When using yield from with the asyncio API, both facts remain true, with the following specifics:  
+    当与asyncio API使用yield from是，这两个事实仍然成立，具体如下：
 
-- The coroutine chains we write are always driven by passing our outermost delegating generator to an asyncio API call, such as loop.run_until_complete(…). In other words, when using asyncio our code doesn’t drive a coroutine chain by calling next(…) or .send(…) on it—the asyncio event loop does that.
-- The coroutine chains we write always end by delegating with yield from to some asyncio coroutine function or coroutine method (e.g., yield from asyncio.sleep(…) in Example 18-2) or coroutines from libraries that implement higher-level protocols (e.g., resp = yield from aiohttp.request('GET', url) in the get_flag coroutine of Example 18-5).  In other words, the innermost subgenerator will be a library function that does the actual I/O, not something we write.
+- The coroutine chains we write are always driven by passing our outermost delegating generator to an asyncio API call, such as loop.run_until_complete(…). In other words, when using asyncio our code doesn’t drive a coroutine chain by calling next(…) or .send(…) on it—the asyncio event loop does that.  
+    我们编写的协程链总是通过将最外层的委托生成器至asyncio API调用来驱动，如loop.run_until_complete(…)。换句话说，当使用asuycio时，我们的代码不能同调用next()或send()来驱动协程——事件循环会做这件事。
+- The coroutine chains we write always end by delegating with yield from to some asyncio coroutine function or coroutine method (e.g., yield from asyncio.sleep(…) in Example 18-2) or coroutines from libraries that implement higher-level protocols (e.g., resp = yield from aiohttp.request('GET', url) in the get_flag coroutine of Example 18-5).  In other words, the innermost subgenerator will be a library function that does the actual I/O, not something we write.  
+    我们写的协程链总是以如下情况结束，通过分配yield from至一些asyncio协程函数或协程方法（如18-2的yield from asyncio.sleep(…)），或实现高级协议的库中的协程（如18-5 get_flag协程中的resp = yield from aiohttp.request('GET', url)）。换句话说，最内层的子生成器将是一个执行实际I/O的库函数，而不是我们编写的东西。
 
 To summarize: as we use asyncio, our asynchronous code consists of coroutines that are delegating generators driven by asyncio itself and that ultimately delegate to asyncio library coroutines—possibly by way of some third-party library such as aiohttp. This arrangement creates pipelines where the asyncio event loop drives—through our coroutines—the library functions that perform the low-level asynchronous I/O.  
-We are now ready to answer one question raised in Chapter 17:
+    总而言之：当我们使用asyncio，我们的异步代码由协程构成，这些协程是由asyncio自己驱动的委托生成器，且直接委托给asyncio库协程——可能通过一些像是aiohttp的第三方库。这种分配创建了asyncio事件循环驱动的管道——通过我们的协程——执行低级异步I/O的库函数。
+We are now ready to answer one question raised in Chapter 17:  
+    现在我们准备回答17章提出的一个问题：
 
-- How can flags_asyncio.py perform 5× faster than flags.py when both are single threaded?
+- How can flags_asyncio.py perform 5× faster than flags.py when both are single threaded?  
+    当两者都是单线程时，flags_asyncio.py是怎样比flags.py快5倍的？
