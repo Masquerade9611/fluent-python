@@ -566,3 +566,54 @@ We are now ready to answer one question raised in Chapter 17:
 
 - How can flags_asyncio.py perform 5× faster than flags.py when both are single threaded?  
     当两者都是单线程时，flags_asyncio.py是怎样比flags.py快5倍的？
+
+### Running Circling Around Blocking Calls
+### 围绕阻塞调用的运行
+
+Ryan Dahl, the inventor of Node.js, introduces the philosophy of his project by saying "We’re doing I/O completely wrong.[4]" He defines a blocking function as one that does disk or network I/O, and argues that we can’t treat them as we treat nonblocking functions. To explain why, he presents the numbers in the first two columns of Table 18-1.  
+    Node.js的开发者Ryan Dahl，通过说明“我们做的I/O是完全错误的[4]”以介绍他的项目哲学。他定义了一个阻塞函数用作处理磁盘或网络IO，并且主张我们不能像对待非阻塞函数一样对待他。为了解释原因，他展示了表18-1前两列的数字。
+
+Table 18-1. Modern computer latency for reading data from different devices; third column shows proportional times in a scale easier to understand for us slow humans  
+    表18-1. 当代计算机不同设备读取数据的延迟；第三列展示了修改比例的时间，便于我们理解
+
+|Device| CPU cycles | Proportional “human” scale |
+|---|---|---|
+|L1 cache| 3 |3 seconds|
+|L2 cache | 14 | 14 seconds|
+|RAM | 250 | 250 seconds|
+|disk | 41,000,000 | 1.3 years|
+|network | 240,000,000 | 7.6 years|
+
+[4] Video: Introduction to Node.js at 4:55.  
+
+To make sense of Table 18-1, bear in mind that modern CPUs with GHz clocks run billions of cycles per second. Let’s say that a CPU runs exactly 1 billion cycles per second. That CPU can make 333,333,333 L1 cache reads in one second, or 4 (four!) network reads in the same time. The third column of Table 18-1 puts those numbers in perspective by multiplying the second column by a constant factor. So, in an alternate universe, if one read from L1 cache took 3 seconds, then a network read would take 7.6 years!  
+    为了理解表18-1，请记住拥有GHz时钟的当代CPU每秒可以运行数十亿个周期。假设一个CPU每秒实际运行十亿个周期，那该CPU可以在1秒内执行333,333,333个L1 cache的读取，或是执行4次网络读取。表的第三列是第二列乘以一个常数因子获取的数字。所以在另一个宇宙中，如果读取L1缓存花费3秒，那么读取网络将花费7.6年！
+
+There are two ways to prevent blocking calls to halt the progress of the entire application:  
+    有两种方法可以防止阻塞调用以停止整个应用程序的进程：
+
+- Run each blocking operation in a separate thread.  
+    在单独的线程中运行每个阻塞操作。
+- Turn every blocking operation into a nonblocking asynchronous call.  
+    将每个阻塞操作转换为非阻塞异步调用。
+
+Threads work fine, but the memory overhead for each OS thread—the kind that Python uses—is on the order of megabytes, depending on the OS. We can’t afford one thread per connection if we are handling thousands of connections.  
+    线程很棒，但是每个OS线程（Python使用的那种）的内存开销是百万兆字节的，这取决于OS。如果我们要处理数千个连接，不能为每次连接都提供一个线程。
+
+Callbacks are the traditional way to implement asynchronous calls with low memory overhead. They are a low-level concept, similar to the oldest and most primitive concurrency mechanism of all: hardware interrupts. Instead of waiting for a response, we register a function to be called when something happens. In this way, every call we make can be nonblocking. Ryan Dahl advocates callbacks for their simplicity and low overhead.  
+    回调是实现异步调用传统方式，拥有着低内存开销。这是一个低级的概念，类似于最古老最原始的并发机制：硬件中断。为了等待一个响应，我们注册一个函数，当发生了某些事时被调用。这种方式下，我们的每次调用都是非阻塞的。Ryan Dahl提倡了回调的简易与低开销。
+
+Of course, we can only make callbacks work because the event loop underlying our asynchronous applications can rely on infrastructure that uses interrupts, threads, polling, background processes, etc. to ensure that multiple concurrent requests make progress and they eventually get done.5 When the event loop gets a response, it calls back our code. But the single main thread shared by the event loop and our application code is never blocked—if we don’t make mistakes.  
+    当然，我们只能让回调工作，因为我们异步应用底层的事件循环可以依赖于中断，线程，轮询后台进程等基础设施。
+
+When used as coroutines, generators provide an alternative way to do asynchronous programming. From the perspective of the event loop, invoking a callback or calling .send() on a suspended coroutine is pretty much the same. There is a memory overhead for each suspended coroutine, but it’s orders of magnitude smaller than the overhead for each thread. And they avoid the dreaded “callback hell,” which we’ll discuss in “From Callbacks to Futures and Coroutines” on page 562.  
+
+Now the five-fold performance advantage of flags_asyncio.py over flags.py should make sense: flags.py spends billions of CPU cycles waiting for each download, one after the other. The CPU is actually doing a lot meanwhile, just not running your program. In contrast, when loop_until_complete is called in the download_many function of flags_asyncio.py, the event loop drives each download_one coroutine to the first yield from, and this in turn drives each get_flag coroutine to the first yield from, calling aiohttp.request(…). None of these calls are blocking, so all requests are started in a fraction of a second.  
+
+As the asyncio infrastructure gets the first response back, the event loop sends it to the waiting get_flag coroutine. As get_flag gets a response, it advances to the next yield from, which calls resp.read() and yields control back to the main loop. Other responses arrive in close succession (because they were made almost at the same time). As each get_flag returns, the delegating generator download_flag resumes and saves the image file.
+
+    For maximum performance, the save_flag operation should be asynchronous, but asyncio does not provide an asynchronous filesystem API at this time—as Node does. If that becomes a bottleneck in your application, you can use the loop.run_in_executor function to run save_flag in a thread pool. Example 18-9 will show how.
+
+Because the asynchronous operations are interleaved, the total time needed to download many images concurrently is much less than doing it sequentially. When making 600 HTTP requests with asyncio I got all results back more than 70 times faster than with a sequential script.  
+
+Now let’s go back to the HTTP client example to see how we can display an animated progress bar and perform proper error handling.
