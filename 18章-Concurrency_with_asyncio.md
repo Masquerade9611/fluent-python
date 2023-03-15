@@ -603,17 +603,23 @@ Threads work fine, but the memory overhead for each OS thread—the kind that Py
 Callbacks are the traditional way to implement asynchronous calls with low memory overhead. They are a low-level concept, similar to the oldest and most primitive concurrency mechanism of all: hardware interrupts. Instead of waiting for a response, we register a function to be called when something happens. In this way, every call we make can be nonblocking. Ryan Dahl advocates callbacks for their simplicity and low overhead.  
     回调是实现异步调用传统方式，拥有着低内存开销。这是一个低级的概念，类似于最古老最原始的并发机制：硬件中断。为了等待一个响应，我们注册一个函数，当发生了某些事时被调用。这种方式下，我们的每次调用都是非阻塞的。Ryan Dahl提倡了回调的简易与低开销。
 
-Of course, we can only make callbacks work because the event loop underlying our asynchronous applications can rely on infrastructure that uses interrupts, threads, polling, background processes, etc. to ensure that multiple concurrent requests make progress and they eventually get done.5 When the event loop gets a response, it calls back our code. But the single main thread shared by the event loop and our application code is never blocked—if we don’t make mistakes.  
-    当然，我们只能让回调工作，因为我们异步应用底层的事件循环可以依赖于中断，线程，轮询后台进程等基础设施。
+Of course, we can only make callbacks work because the event loop underlying our asynchronous applications can rely on infrastructure that uses interrupts, threads, polling, background processes, etc. to ensure that multiple concurrent requests make progress and they eventually get done.[5] When the event loop gets a response, it calls back our code. But the single main thread shared by the event loop and our application code is never blocked—if we don’t make mistakes.  
+    当然，我们只能让回调工作，因为我们异步应用底层的事件循环可以依赖于中断，线程，轮询后台进程等基础设施，来确保多个并发请求都在进行并最终完成。当事件循环获取一个响应时，他会回调我们的代码。但单独的主线程（由事件循环与我们的应用代码共享）用不阻塞——如果没犯错的话。
 
 When used as coroutines, generators provide an alternative way to do asynchronous programming. From the perspective of the event loop, invoking a callback or calling .send() on a suspended coroutine is pretty much the same. There is a memory overhead for each suspended coroutine, but it’s orders of magnitude smaller than the overhead for each thread. And they avoid the dreaded “callback hell,” which we’ll discuss in “From Callbacks to Futures and Coroutines” on page 562.  
+    生成器在被用作协程时，会提供一种异步编程的替代方式。从事件循环的角度看，调用回调或者在挂起协程上调用.send()基本是一样的。每个挂起的协程都有内存开销，但这比线程的开销要小几个数量级。并且这避免了可怕的“回调地狱”，我们会在562页“从回调到Future与协程”讨论到。
 
 Now the five-fold performance advantage of flags_asyncio.py over flags.py should make sense: flags.py spends billions of CPU cycles waiting for each download, one after the other. The CPU is actually doing a lot meanwhile, just not running your program. In contrast, when loop_until_complete is called in the download_many function of flags_asyncio.py, the event loop drives each download_one coroutine to the first yield from, and this in turn drives each get_flag coroutine to the first yield from, calling aiohttp.request(…). None of these calls are blocking, so all requests are started in a fraction of a second.  
+    现在，flags_asycnio.py对flags.py的5倍性能优势是可以讲得通了：flags.py花费了数十亿次CPU周期等待每次下载，一次又一次地。CPU实际上这时做了很多事，只是没有运行你的程序。对比之下，当flags_asyncio.py中download_mandy函数的loop_until_complete被调用时，事件循环会驱动每个download_one协程至首个yield from，这反过来驱动了每个get_flag协程至首个yield from，来调用aiohttp.request(…)。这些调用都没有阻塞，所以所有请求在不到一秒内都启动了。
 
-As the asyncio infrastructure gets the first response back, the event loop sends it to the waiting get_flag coroutine. As get_flag gets a response, it advances to the next yield from, which calls resp.read() and yields control back to the main loop. Other responses arrive in close succession (because they were made almost at the same time). As each get_flag returns, the delegating generator download_flag resumes and saves the image file.
-
-    For maximum performance, the save_flag operation should be asynchronous, but asyncio does not provide an asynchronous filesystem API at this time—as Node does. If that becomes a bottleneck in your application, you can use the loop.run_in_executor function to run save_flag in a thread pool. Example 18-9 will show how.
+As the asyncio infrastructure gets the first response back, the event loop sends it to the waiting get_flag coroutine. As get_flag gets a response, it advances to the next yield from, which calls resp.read() and yields control back to the main loop. Other responses arrive in close succession (because they were made almost at the same time). As each get_flag returns, the delegating generator download_flag resumes and saves the image file.  
+    当asyncio基础结构获取到首个返回的响应，事件循环会将他send至等待的get_flag协程。当get_flag获取到一个响应，他会推动下一个yield from，调用resp.read()并将控制权交还给主循环。其他响应接踵而至（因为他们几乎是同时发送的）。当每个get_flag返回时，委托生成器download_flag恢复并保存图片文件。
+`
+    For maximum performance, the save_flag operation should be asynchronous, but asyncio does not provide an asynchronous filesystem API at this time—as Node does. If that becomes a bottleneck in your application, you can use the loop.run_in_executor function to run save_flag in a thread pool. Example 18-9 will show how.  
+    为了最大化性能，save_flag操作应该是异步的，但asyncio此时不能提供一个异步文件系统API——Node提供。如果这成为你的应用中的瓶颈，你可以在一个线程池中用loop.run_in_executor函数来运行save_flag。示例18-9会告诉你怎么做。
 
 Because the asynchronous operations are interleaved, the total time needed to download many images concurrently is much less than doing it sequentially. When making 600 HTTP requests with asyncio I got all results back more than 70 times faster than with a sequential script.  
+    因为异步操作是交错进行的，所以并发下载多个图片的总时间要比顺序版本小得多。当用asyncio发送600次HTTP请求时，我得到的所有结果的速度要比顺序脚本快70多倍。
 
-Now let’s go back to the HTTP client example to see how we can display an animated progress bar and perform proper error handling.
+Now let’s go back to the HTTP client example to see how we can display an animated progress bar and perform proper error handling.  
+    现在我们返回到HTTP clien示例，来看看怎样显示一个动态的进度条，以及执行正确的Error处理。
