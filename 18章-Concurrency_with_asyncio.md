@@ -623,3 +623,186 @@ Because the asynchronous operations are interleaved, the total time needed to do
 
 Now let’s go back to the HTTP client example to see how we can display an animated progress bar and perform proper error handling.  
     现在我们返回到HTTP clien示例，来看看怎样显示一个动态的进度条，以及执行正确的Error处理。
+
+## Enhancing the asyncio downloader Script
+
+Recall from “Downloads with Progress Display and Error Handling” on page 520 that
+the flags2 set of examples share the same command-line interface. This includes the
+flags2_asyncio.py we will analyze in this section. For instance, Example 18-6 shows how
+to get 100 flags (-al 100) from the ERROR server, using 100 concurrent requests (-m 100).
+Example 18-6. Running flags2_asyncio.py
+
+```
+$ python3 flags2_asyncio.py -s ERROR -al 100 -m 100
+ERROR site: http://localhost:8003/flags
+Searching for 100 flags: from AD to LK
+100 concurrent connections will be used.
+--------------------
+73 flags downloaded.
+27 errors.
+Elapsed time: 0.64s
+```
+
+    Act Responsibly When Testing Concurrent Clients  
+    Even if the overall download time is not different between the threaded and asyncio HTTP clients, asyncio can send requests faster, so it’s even more likely that the server will suspect a DOS attack. To really exercise these concurrent clients at full speed, set up a local HTTP server for testing, as explained in the README.rst inside the 17-futures/countries/ directory of the Fluent Python code repository.
+
+Now let’s see how flags2_asyncio.py is implemented.
+
+### Using asyncio.as_completed
+
+In Example 18-5, I passed a list of coroutines to asyncio.wait, which—when driven by loop.run_until complete—would return the results of the downloads when all were done. But to update a progress bar we need to get results as they are done. Fortunately, there is an asyncio equivalent of the as_completed generator function we used in the thread pool example with the progress bar (Example 17-14).  
+
+Writing a flags2 example to leverage asyncio entails rewriting several functions that the concurrent future version could reuse. That’s because there’s only one main thread in an asyncio program and we can’t afford to have blocking calls in that thread, as it’s the same thread that runs the event loop. So I had to rewrite get_flag to use yield from for all network access. Now get_flag is a coroutine, so download_one must drive it with yield from, therefore download_one itself becomes a coroutine。Previously, in Example 18-5, download_one was driven by download_many: the calls to download_one were wrapped in an asyncio.wait call and passed to loop.run_until_complete. Now we need finer control for progress reporting and error handling, so I moved most of the logic from download_many into a new downloader_coro coroutine, and use download_many just to set up the event loop and schedule downloader_coro.
+
+Example 18-7 shows the top of the flags2_asyncio.py script where the get_flag and download_one coroutines are defined. Example 18-8 lists the rest of the source, with downloader_coro and download_many.  
+
+Example 18-7. flags2_asyncio.py: Top portion of the script; remaining code is in Example 18-8
+```python
+import asyncio
+import collections
+
+import aiohttp
+from aiohttp import web
+import tqdm
+from flags2_common import main, HTTPStatus, Result, save_flag
+
+# default set low to avoid errors from remote site, such as
+# 503 - Service Temporarily Unavailable
+DEFAULT_CONCUR_REQ = 5
+MAX_CONCUR_REQ = 1000
+
+class FetchError(Exception):  # 1
+    def __init__(self, country_code):
+        self.country_code = country_code
+
+
+@asyncio.coroutine
+def get_flag(base_url, cc  # 2
+    url = '{}/{cc}/{cc}.gif'.format(base_url, cc=cc.lower())
+    resp = yield from aiohttp.request('GET', url)
+    if resp.status == 200:
+        image = yield from resp.read()
+        return image
+    elif resp.status == 404:
+        raise web.HTTPNotFound()
+    else:
+        raise aiohttp.HttpProcessingError(
+            code=resp.status, message=resp.reason,
+            headers=resp.headers)
+
+
+@asyncio.coroutine
+def download_one(cc, base_url, semaphore, verbose):  # 3
+    try:
+        with (yield from semaphore):  # 4
+            image = yield from get_flag(base_url, cc)  # 5
+    except web.HTTPNotFound:  # 6
+        status = HTTPStatus.not_found
+        msg = 'not found'
+    except Exception as exc:
+        raise FetchError(cc) from exc  # 7
+    else:
+        save_flag(image, cc.lower() + '.gif')  # 8
+        status = HTTPStatus.ok
+        msg = 'OK'
+
+    if verbose and msg:
+        print(cc, msg)
+
+    return Result(status, cc)
+```
+
+1. This custom exception will be used to wrap other HTTP or network exceptions and carry the country_code for error reporting.
+2. get_flag will either return the bytes of the image downloaded, raise web.HTTPNotFound if the HTTP response status is 404, or raise an aiohttp.HttpProcessingError for other HTTP status codes.
+3. The semaphore argument is an instance of asyncio.Semaphore, a synchronization device that limits the number of concurrent requests.
+4. A semaphore is used as a context manager in a yield from expression so that the system as whole is not blocked: only this coroutine is blocked while the semaphore counter is at the maximum allowed number.
+5. When this with statement exits, the semaphore counter is decremented, unblocking some other coroutine instance that may be waiting for the same semaphore object.
+6. If the flag was not found, just set the status for the Result accordingly.
+7. Any other exception will be reported as a FetchError with the country code and the original exception chained using the raise X from Y syntax introduced in PEP 3134 — Exception Chaining and Embedded Tracebacks.
+8. This function call actually saves the flag image to disk.
+
+In Example 18-7, you can see that the code for get_flag and download_one changed significantly from the sequential version because these functions are now coroutines using yield from to make asynchronous calls.  
+Network client code of the sort we are studying should always use some throttling mechanism to avoid pounding the server with too many concurrent requests—the overall performance of the system may degrade if the server is overloaded. In flags2_threadpool.py (Example 17-14), the throttling was done by instantiating the ThreadPoolExecutor with the required max_workers argument set to concur_req in the download_many function, so only concur_req threads are started in the pool. In flags2_asyncio.py, I used an asyncio.Semaphore, which is created by the downloader_coro function (shown next, in Example 18-8) and is passed as the semaphore argument to download_one in Example 18-7.[6]  
+
+A Semaphore is an object that holds an internal counter that is decremented whenever we call the .acquire() coroutine method on it, and incremented when we call the .release() coroutine method. The initial value of the counter is set when the Semaphore is instantiated, as in this line of downloader_coro:  
+
+    semaphore = asyncio.Semaphore(concur_req)
+
+Calling .acquire() does not block when the counter is greater than zero, but if the counter is zero, .acquire() will block the calling coroutine until some other coroutine calls .release() on the same Semaphore, thus incrementing the counter. In Example 18-7, I don’t call .acquire() or .release(), but use the semaphore as a context manager in this block of code inside download_one:
+
+    with (yield from semaphore):
+        image = yield from get_flag(base_url, cc)
+
+That snippet guarantees that no more than concur_req instances of get_flags coroutines will be started at any time.  
+Now let’s take a look at the rest of the script in Example 18-8. Note that most functionality of the old download_many function is now in a coroutine, downloader_coro. This was necessary because we must use yield from to retrieve the results of the futures yielded by asyncio.as_completed, therefore as_completed must be invoked in a coroutine. However, I couldn’t simply turn download_many into a coroutine, because I must pass it to the main function from flags2_common in the last line of the script, and that main function is not expecting a coroutine, just a plain function. Therefore I created downloader_coro to run the as_completed loop, and now download_many simply sets up the event loop and schedules downloader_coro by passing it to loop.run_until_complete.  
+
+Example 18-8. flags2_asyncio.py: Script continued from Example 18-7
+
+```python
+@asyncio.coroutine
+def downloader_coro(cc_list, base_url, verbose, concur_req):  # 1
+    counter = collections.Counter()
+    semaphore = asyncio.Semaphore(concur_req)  # 2
+    to_do = [download_one(cc, base_url, semaphore, verbose)
+             for cc in sorted(cc_list)]  # 3
+
+    to_do_iter = asyncio.as_completed(to_do)  # 4 
+    if not verbose:
+        to_do_iter = tqdm.tqdm(to_do_iter, total=len(cc_list))  # 5
+    for future in to_do_iter:  # 6
+        try:
+            res = yield from future  # 7
+        except FetchError as exc:  # 8
+            country_code = exc.country_code  # 9
+            try:
+                error_msg = exc.__cause__.args[0]  # 10
+            except IndexError:
+                error_msg = exc.__cause__.__class__.__name__  # 11
+            if verbose and error_msg:
+                msg = '*** Error for {}: {}'
+                print(msg.format(country_code, error_msg))
+            status = HTTPStatus.error
+        else:
+            status = res.status
+    
+        counter[status] += 1  # 12
+
+    return counter  # 13
+
+
+def download_many(cc_list, base_url, verbose, concur_req):
+    loop = asyncio.get_event_loop()
+    coro = downloader_coro(cc_list, base_url, verbose, concur_req)
+    counts = loop.run_until_complete(coro)  # 14
+    loop.close()  # 15
+
+    return counts
+
+
+if __name__ == '__main__':
+    main(download_many, DEFAULT_CONCUR_REQ, MAX_CONCUR_REQ)
+```
+
+1. The coroutine receives the same arguments as download_many, but it cannot be invoked directly from main precisely because it’s a coroutine function and not a plain function like download_many.
+2. Create an asyncio.Semaphore thatwill allowup to concur_req active coroutines among those using this semaphore.
+3. Create a list of coroutine objects, one per call to the download_one coroutine.
+4. Get an iterator that will return futures as they are done.
+5. Wrap the iterator in the tqdm function to display progress.
+6. Iterate over the completed futures; this loop is very similar to the one in download_many in Example 17-14; most changes have to do with exception handling because of differences in the HTTP libraries (requests versus aiohttp).
+7. The easiest way to retrieve the result of an asyncio.Future is using yield from instead of calling future.result().
+8. Every exception in download_one is wrapped in a FetchError with the original exception chained.
+9. Get the country code where the error occurred from the FetchError exception.
+10. Try to retrieve the error message from the original exception (__cause__).
+11. If the error message cannot be found in the original exception, use the name of the chained exception class as the error message.
+12. Tally outcomes.
+13. Return the counter, as done in the other scripts.
+14. download_many simply instantiates the coroutine and passes it to the event loop with run_until_complete.
+15. When all work is done, shut down the event loop and return counts.
+
+In Example 18-8, we could not use the mapping of futures to country codes we saw in Example 17-14 because the futures returned by asyncio.as_completed are not necessarily the same futures we pass into the as_completed call. Internally, the asyncio machinery replaces the future objects we provide with others that will, in the end, produce the same results.[7]  
+
+Because I could not use the futures as keys to retrieve the country code from a dict in case of failure, I implemented the custom FetchError exception (shown in Example 18-7). FetchError wraps a network exception and holds the country code associated with it, so the country code can be reported with the error in verbose mode.If there is no error, the country code is available as the result of the yield from future expression at the top of the for loop.  
+
+This wraps up the discussion of an asyncio example functionally equivalent to the flags2_threadpool.py we saw earlier. Next, we’ll implement enhancements to flags2_asyncio.py that will let us explore asyncio further.  
+
+While discussing Example 18-7, I noted that save_flag performs disk I/O and should be executed asynchronously. The following section shows how.
