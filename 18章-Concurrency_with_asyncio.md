@@ -626,10 +626,9 @@ Now let’s go back to the HTTP client example to see how we can display an anim
 
 ## Enhancing the asyncio downloader Script
 
-Recall from “Downloads with Progress Display and Error Handling” on page 520 that
-the flags2 set of examples share the same command-line interface. This includes the
-flags2_asyncio.py we will analyze in this section. For instance, Example 18-6 shows how
-to get 100 flags (-al 100) from the ERROR server, using 100 concurrent requests (-m 100).
+Recall from “Downloads with Progress Display and Error Handling” on page 520 that the flags2 set of examples share the same command-line interface. This includes the flags2_asyncio.py we will analyze in this section. For instance, Example 18-6 shows how to get 100 flags (-al 100) from the ERROR server, using 100 concurrent requests (-m 100).  
+    回想一下520页的“带有进度条与错误处理的下载”，flags2示例共享的相同命令行界面。这包含了我们将在本节分析的flags2_asyncio.py。例如，例18-6展示了如何通过100条并发请求（-m 100）从ERROR服务中获取100个flag（-al 100）。
+
 Example 18-6. Running flags2_asyncio.py
 
 ```
@@ -644,17 +643,22 @@ Elapsed time: 0.64s
 ```
 
     Act Responsibly When Testing Concurrent Clients  
-    Even if the overall download time is not different between the threaded and asyncio HTTP clients, asyncio can send requests faster, so it’s even more likely that the server will suspect a DOS attack. To really exercise these concurrent clients at full speed, set up a local HTTP server for testing, as explained in the README.rst inside the 17-futures/countries/ directory of the Fluent Python code repository.
+    在测试并发客户端时采取负责任的行动
+    Even if the overall download time is not different between the threaded and asyncio HTTP clients, asyncio can send requests faster, so it’s even more likely that the server will suspect a DOS attack. To really exercise these concurrent clients at full speed, set up a local HTTP server for testing, as explained in the README.rst inside the 17-futures/countries/ directory of the Fluent Python code repository.  
+    即使线程和asyncio HTTP客户端总的下载时间所差无几，但asyncio可以更快的发送请求，所以更有可能发生的是服务端会怀疑收到DOS攻击。为了真的全速运行这些并发客户端，配置一个本地HTTP服务用于测试，如Fluent Python代码存储库的 17-futures/countries/ 目录中的README.rst中所述。
 
-Now let’s see how flags2_asyncio.py is implemented.
+Now let’s see how flags2_asyncio.py is implemented.  
 
 ### Using asyncio.as_completed
 
-In Example 18-5, I passed a list of coroutines to asyncio.wait, which—when driven by loop.run_until complete—would return the results of the downloads when all were done. But to update a progress bar we need to get results as they are done. Fortunately, there is an asyncio equivalent of the as_completed generator function we used in the thread pool example with the progress bar (Example 17-14).  
+In Example 18-5, I passed a list of coroutines to asyncio.wait, which—when driven by loop.run_until _complete—would return the results of the downloads when all were done. But to update a progress bar we need to get results as they are done. Fortunately, there is an asyncio equivalent of the as_completed generator function we used in the thread pool example with the progress bar (Example 17-14).  
+    在示例18-5中，我将一组协程列表传入asyncio.wait（在被loop.run_until_complete驱动时），当他们全部结束后会返回下载结果。但为了更新进度条，他们一旦完成我们就需要获取到结果。幸运的是，有一个asyncio函数，等效于我们之前带进度条的线程池示例中的as_completed生成器函数。（示例17-14）
 
-Writing a flags2 example to leverage asyncio entails rewriting several functions that the concurrent future version could reuse. That’s because there’s only one main thread in an asyncio program and we can’t afford to have blocking calls in that thread, as it’s the same thread that runs the event loop. So I had to rewrite get_flag to use yield from for all network access. Now get_flag is a coroutine, so download_one must drive it with yield from, therefore download_one itself becomes a coroutine。Previously, in Example 18-5, download_one was driven by download_many: the calls to download_one were wrapped in an asyncio.wait call and passed to loop.run_until_complete. Now we need finer control for progress reporting and error handling, so I moved most of the logic from download_many into a new downloader_coro coroutine, and use download_many just to set up the event loop and schedule downloader_coro.
+Writing a flags2 example to leverage asyncio entails rewriting several functions that the concurrent future version could reuse. That’s because there’s only one main thread in an asyncio program and we can’t afford to have blocking calls in that thread, as it’s the same thread that runs the event loop. So I had to rewrite get_flag to use yield from for all network access. Now get_flag is a coroutine, so download_one must drive it with yield from, therefore download_one itself becomes a coroutine。Previously, in Example 18-5, download_one was driven by download_many: the calls to download_one were wrapped in an asyncio.wait call and passed to loop.run_until_complete. Now we need finer control for progress reporting and error handling, so I moved most of the logic from download_many into a new downloader_coro coroutine, and use download_many just to set up the event loop and schedule downloader_coro.  
+    编写一个flags示例来利用asyncio，需要重写顺序版的函数，并发future版本可以复用。那是因为asyncio程序里只有一个主线程，我们不能在这个线程中进行阻塞调用，因为这同样是运行事件循环的线程。所以我重写了get_flag，为所有网络访问使用yield from。现在get_flag就是一个协程，所以download_one必须用yiled from来驱动他，因此download_one自己也变成了一个协程。在之前的示例18-5中，download_one由download_many所驱动：对download_one的调用被asuncio.wait调用所包装并传入至loop.run_until_complete。现在为了进度的报告与error处理，我们需要更细致的控制，所以我将download_many的大部分逻辑移至了一个新协程downloader_coro，并且使用download_many仅去配置事件循环并调度downloader_coro。
 
 Example 18-7 shows the top of the flags2_asyncio.py script where the get_flag and download_one coroutines are defined. Example 18-8 lists the rest of the source, with downloader_coro and download_many.  
+    例18-7展示了flags2_asyncio.py脚本的顶部部分，定义了get_flga与download_one协程。例18-8列出了源代码的其余部分downloader_coro与download_many。
 
 Example 18-7. flags2_asyncio.py: Top portion of the script; remaining code is in Example 18-8
 ```python
