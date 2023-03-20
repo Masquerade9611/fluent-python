@@ -681,7 +681,7 @@ class FetchError(Exception):  # 1
 
 
 @asyncio.coroutine
-def get_flag(base_url, cc  # 2
+def get_flag(base_url, cc)  # 2
     url = '{}/{cc}/{cc}.gif'.format(base_url, cc=cc.lower())
     resp = yield from aiohttp.request('GET', url)
     if resp.status == 200:
@@ -716,11 +716,15 @@ def download_one(cc, base_url, semaphore, verbose):  # 3
     return Result(status, cc)
 ```
 
-1. This custom exception will be used to wrap other HTTP or network exceptions and carry the country_code for error reporting.
-2. get_flag will either return the bytes of the image downloaded, raise web.HTTPNotFound if the HTTP response status is 404, or raise an aiohttp.HttpProcessingError for other HTTP status codes.
-3. The semaphore argument is an instance of asyncio.Semaphore, a synchronization device that limits the number of concurrent requests.
-4. A semaphore is used as a context manager in a yield from expression so that the system as whole is not blocked: only this coroutine is blocked while the semaphore counter is at the maximum allowed number.
-5. When this with statement exits, the semaphore counter is decremented, unblocking some other coroutine instance that may be waiting for the same semaphore object.
+1. This custom exception will be used to wrap other HTTP or network exceptions and carry the country_code for error reporting.  
+    此自定义异常将被用于包装其他HTTP或网络异常，且携带country_code用于报告错误。
+2. get_flag will either return the bytes of the image downloaded, raise web.HTTPNotFound if the HTTP response status is 404, or raise an aiohttp.HttpProcessingError for other HTTP status codes.  
+    get_flag将会返回下载的图片的字节，如果HTTP相应状态为404会抛出web.HTTPNotFound，其余HTTP状态码则抛出aiohttp.HttpProcessingError。
+3. The semaphore argument is an instance of asyncio.Semaphore, a synchronization device that limits the number of concurrent requests.  
+    参数semaphore是asyncio.Semaphore的实例，是一种限制并发请求数的同步设备。
+4. A semaphore is used as a context manager in a yield from expression so that the system as whole is not blocked: only this coroutine is blocked while the semaphore counter is at the maximum allowed number.  
+    yield from表达式中的semaphore被用作文本管理器，这样整个系统就不会阻塞：当信号量计数器处于允许的最大数量时，只有这条协程被阻塞
+5. When this with statement exits, the semaphore counter is decremented, unblocking some other coroutine instance that may be waiting for the same semaphore object.  
 6. If the flag was not found, just set the status for the Result accordingly.
 7. Any other exception will be reported as a FetchError with the country code and the original exception chained using the raise X from Y syntax introduced in PEP 3134 — Exception Chaining and Embedded Tracebacks.
 8. This function call actually saves the flag image to disk.
