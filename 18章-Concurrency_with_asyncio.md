@@ -661,6 +661,7 @@ Example 18-7 shows the top of the flags2_asyncio.py script where the get_flag an
     例18-7展示了flags2_asyncio.py脚本的顶部部分，定义了get_flga与download_one协程。例18-8列出了源代码的其余部分downloader_coro与download_many。
 
 Example 18-7. flags2_asyncio.py: Top portion of the script; remaining code is in Example 18-8
+
 ```python
 import asyncio
 import collections
@@ -723,17 +724,25 @@ def download_one(cc, base_url, semaphore, verbose):  # 3
 3. The semaphore argument is an instance of asyncio.Semaphore, a synchronization device that limits the number of concurrent requests.  
     参数semaphore是asyncio.Semaphore的实例，是一种限制并发请求数的同步设备。
 4. A semaphore is used as a context manager in a yield from expression so that the system as whole is not blocked: only this coroutine is blocked while the semaphore counter is at the maximum allowed number.  
-    yield from表达式中的semaphore被用作文本管理器，这样整个系统就不会阻塞：当信号量计数器处于允许的最大数量时，只有这条协程被阻塞
+    yield from表达式中的semaphore被用作文本管理器，这样整个系统就不会阻塞：当信号量计数器处于允许的最大数量时，只有这条协程被阻塞。
 5. When this with statement exits, the semaphore counter is decremented, unblocking some other coroutine instance that may be waiting for the same semaphore object.  
-6. If the flag was not found, just set the status for the Result accordingly.
-7. Any other exception will be reported as a FetchError with the country code and the original exception chained using the raise X from Y syntax introduced in PEP 3134 — Exception Chaining and Embedded Tracebacks.
-8. This function call actually saves the flag image to disk.
+    当这条with语句退出时，信号量计数会递减，这会解除其他等待相同信号量对象的协程实例的阻塞。
+6. If the flag was not found, just set the status for the Result accordingly.  
+    如果未找到flag，只需要为结果设置相应的状态。
+7. Any other exception will be reported as a FetchError with the country code and the original exception chained using the raise X from Y syntax introduced in PEP 3134 — Exception Chaining and Embedded Tracebacks.  
+    任何其他的异常将报告为带有国家code的FetchError与使用PEP 3134中引入的raise X from Y语法链接的原始异常——异常链接和嵌入式回溯。
+8. This function call actually saves the flag image to disk.  
+    本次调用将flag图片实际保存至硬盘。
 
 In Example 18-7, you can see that the code for get_flag and download_one changed significantly from the sequential version because these functions are now coroutines using yield from to make asynchronous calls.  
+    在示例18-7中，你可以看到get_flag与download_one的代码与顺序版本相比有了很大变化，因为这函数现在是使用了yield from的协程，来进行异步调用。
+
 Network client code of the sort we are studying should always use some throttling mechanism to avoid pounding the server with too many concurrent requests—the overall performance of the system may degrade if the server is overloaded. In flags2_threadpool.py (Example 17-14), the throttling was done by instantiating the ThreadPoolExecutor with the required max_workers argument set to concur_req in the download_many function, so only concur_req threads are started in the pool. In flags2_asyncio.py, I used an asyncio.Semaphore, which is created by the downloader_coro function (shown next, in Example 18-8) and is passed as the semaphore argument to download_one in Example 18-7.[6]  
+    我们现在研究的网络客户代码总是使用了一些节流机制，来避免过多并发请求导致对服务的冲击——如果服务器过载，系统的整体性能呢可能会下降。在flags2_threadpool.py（例17-14），节流是通过实例化ThreadPoolExecutor完成的，将需要的max_workers参数设置仅download_many函数中，这会在downloader_coro函数中创建（接下来的示例18-8会展示），并作为信号量参数传至示例18-7的download_one中。
 
 A Semaphore is an object that holds an internal counter that is decremented whenever we call the .acquire() coroutine method on it, and incremented when we call the .release() coroutine method. The initial value of the counter is set when the Semaphore is instantiated, as in this line of downloader_coro:  
-
+    Semaphore是一个对象，控制内部计数器，不论何时当我们对其调用了.acquire()协程方法就会减少，调用.release()协程方法时就会上升。该计数器的初始值在Semaphore实例化时被设置，如下面downloader_coro该行所示：
+`
     semaphore = asyncio.Semaphore(concur_req)
 
 Calling .acquire() does not block when the counter is greater than zero, but if the counter is zero, .acquire() will block the calling coroutine until some other coroutine calls .release() on the same Semaphore, thus incrementing the counter. In Example 18-7, I don’t call .acquire() or .release(), but use the semaphore as a context manager in this block of code inside download_one:
