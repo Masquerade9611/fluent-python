@@ -742,16 +742,19 @@ Network client code of the sort we are studying should always use some throttlin
 
 A Semaphore is an object that holds an internal counter that is decremented whenever we call the .acquire() coroutine method on it, and incremented when we call the .release() coroutine method. The initial value of the counter is set when the Semaphore is instantiated, as in this line of downloader_coro:  
     Semaphore是一个对象，控制内部计数器，不论何时当我们对其调用了.acquire()协程方法就会减少，调用.release()协程方法时就会上升。该计数器的初始值在Semaphore实例化时被设置，如下面downloader_coro该行所示：
-`
+
     semaphore = asyncio.Semaphore(concur_req)
 
-Calling .acquire() does not block when the counter is greater than zero, but if the counter is zero, .acquire() will block the calling coroutine until some other coroutine calls .release() on the same Semaphore, thus incrementing the counter. In Example 18-7, I don’t call .acquire() or .release(), but use the semaphore as a context manager in this block of code inside download_one:
+Calling .acquire() does not block when the counter is greater than zero, but if the counter is zero, .acquire() will block the calling coroutine until some other coroutine calls .release() on the same Semaphore, thus incrementing the counter. In Example 18-7, I don’t call .acquire() or .release(), but use the semaphore as a context manager in this block of code inside download_one:  
+    当计数器大于0时，调用.acquire()不会阻塞，但如果小于0，.acquire()将阻塞对协程的调用直到一些其他协程对统一Semaphore调用了.release()从而对计数器进行递增。在例18-7中，我没有调用.acquire()或.release()，而是在download_one代码这部分将信号量作为一个上下文管理器使用：
 
     with (yield from semaphore):
         image = yield from get_flag(base_url, cc)
 
 That snippet guarantees that no more than concur_req instances of get_flags coroutines will be started at any time.  
+    这段代码保证了由任意时间启动的get_flags协程实例数量都不会超过concur_req。
 Now let’s take a look at the rest of the script in Example 18-8. Note that most functionality of the old download_many function is now in a coroutine, downloader_coro. This was necessary because we must use yield from to retrieve the results of the futures yielded by asyncio.as_completed, therefore as_completed must be invoked in a coroutine. However, I couldn’t simply turn download_many into a coroutine, because I must pass it to the main function from flags2_common in the last line of the script, and that main function is not expecting a coroutine, just a plain function. Therefore I created downloader_coro to run the as_completed loop, and now download_many simply sets up the event loop and schedules downloader_coro by passing it to loop.run_until_complete.  
+    现在我们来看看示例18-8脚本的其余部分。注意，旧版download_many函数的大部分功能性内容现在都在协程downloader_coro中。这是必须的，因为我们必须用yield from来检索由asyncio.as_completed产出的future的结果，因此as_completed必须在协程中调用。但是，我不能简单地让download_many变成一个协程，因为我必须在脚本的最后一行将他从flags2_common传入至主函数，且主函数不需要协程，只是一个普通函数。因此我创建了downloader_coro来运行as_completed循环，现在download_many只是简单设置了事件循环，通过将他传入loop.run_until_complete来规划downloader_coro。
 
 Example 18-8. flags2_asyncio.py: Script continued from Example 18-7
 
