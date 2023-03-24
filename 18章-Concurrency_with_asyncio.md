@@ -756,9 +756,11 @@ That snippet guarantees that no more than concur_req instances of get_flags coro
 Now let’s take a look at the rest of the script in Example 18-8. Note that most functionality of the old download_many function is now in a coroutine, downloader_coro. This was necessary because we must use yield from to retrieve the results of the futures yielded by asyncio.as_completed, therefore as_completed must be invoked in a coroutine. However, I couldn’t simply turn download_many into a coroutine, because I must pass it to the main function from flags2_common in the last line of the script, and that main function is not expecting a coroutine, just a plain function. Therefore I created downloader_coro to run the as_completed loop, and now download_many simply sets up the event loop and schedules downloader_coro by passing it to loop.run_until_complete.  
     现在我们来看看示例18-8脚本的其余部分。注意，旧版download_many函数的大部分功能性内容现在都在协程downloader_coro中。这是必须的，因为我们必须用yield from来检索由asyncio.as_completed产出的future的结果，因此as_completed必须在协程中调用。但是，我不能简单地让download_many变成一个协程，因为我必须在脚本的最后一行将他从flags2_common传入至主函数，且主函数不需要协程，只是一个普通函数。因此我创建了downloader_coro来运行as_completed循环，现在download_many只是简单设置了事件循环，通过将他传入loop.run_until_complete来规划downloader_coro。
 
-Example 18-8. flags2_asyncio.py: Script continued from Example 18-7
+Example 18-8. flags2_asyncio.py: Script continued from Example 18-7  
+    例18-8 flags2_asyncio.py：继18-7之后的脚本
 
 ```python
+
 @asyncio.coroutine
 def downloader_coro(cc_list, base_url, verbose, concur_req):  # 1
     counter = collections.Counter()
@@ -803,25 +805,42 @@ if __name__ == '__main__':
     main(download_many, DEFAULT_CONCUR_REQ, MAX_CONCUR_REQ)
 ```
 
-1. The coroutine receives the same arguments as download_many, but it cannot be invoked directly from main precisely because it’s a coroutine function and not a plain function like download_many.
-2. Create an asyncio.Semaphore thatwill allowup to concur_req active coroutines among those using this semaphore.
-3. Create a list of coroutine objects, one per call to the download_one coroutine.
-4. Get an iterator that will return futures as they are done.
-5. Wrap the iterator in the tqdm function to display progress.
-6. Iterate over the completed futures; this loop is very similar to the one in download_many in Example 17-14; most changes have to do with exception handling because of differences in the HTTP libraries (requests versus aiohttp).
-7. The easiest way to retrieve the result of an asyncio.Future is using yield from instead of calling future.result().
-8. Every exception in download_one is wrapped in a FetchError with the original exception chained.
-9. Get the country code where the error occurred from the FetchError exception.
-10. Try to retrieve the error message from the original exception (__cause__).
-11. If the error message cannot be found in the original exception, use the name of the chained exception class as the error message.
-12. Tally outcomes.
-13. Return the counter, as done in the other scripts.
-14. download_many simply instantiates the coroutine and passes it to the event loop with run_until_complete.
-15. When all work is done, shut down the event loop and return counts.
+1. The coroutine receives the same arguments as download_many, but it cannot be invoked directly from main precisely because it’s a coroutine function and not a plain function like download_many.  
+    该协程接收的参数与download_many一样，但恰恰因为他是一个协程函数而不是像download_many一样的普通函数，不能从主函数中直接调用。
+2. Create an asyncio.Semaphore that will allow up to concur_req active coroutines among those using this semaphore.  
+    创建一个asyncio.Semaphore，在使用该信号量的下次中最多允许concur_req个协程。
+3. Create a list of coroutine objects, one per call to the download_one coroutine.  
+    创建一个协程对象的列表，每个都调用download_one协程。
+4. Get an iterator that will return futures as they are done.  
+    获取一个迭代器，在future完成时返回他们。
+5. Wrap the iterator in the tqdm function to display progress.  
+    将迭代器包装进tqdm方法，用于显示进度。
+6. Iterate over the completed futures; this loop is very similar to the one in download_many in Example 17-14; most changes have to do with exception handling because of differences in the HTTP libraries (requests versus aiohttp).  
+    遍历已经完成的协程；该循环与例17-14download_may中的那个很相似；大多数改动与异常处理有关，由于HTTP库的差异（requests和aiohttp）。
+7. The easiest way to retrieve the result of an asyncio.Future is using yield from instead of calling future.result().  
+    检索asyncio.Future结果的最简单方式是用yield from替代调用future.result()。
+8. Every exception in download_one is wrapped in a FetchError with the original exception chained.  
+    download_one的每个异常都被包装进一个FetchError，并链接了原始异常。
+9. Get the country code where the error occurred from the FetchError exception.  
+    从FetchError异常中获取异常发生处的国家码。
+10. Try to retrieve the error message from the original exception (__cause__).  
+    尝试从原始异常(__cause__)检索error信息。
+11. If the error message cannot be found in the original exception, use the name of the chained exception class as the error message.  
+    如果其中找不到error信息，就用连接的异常类的名称作为error信息。
+12. Tally outcomes.  
+    统计结果。
+13. Return the counter, as done in the other scripts.  
+    返回计数，和其他脚本中一样。
+14. download_many simply instantiates the coroutine and passes it to the event loop with run_until_complete.  
+    download_many简单的实例化了协程，并通过run_until_complete传入至事件循环。
+15. When all work is done, shut down the event loop and return counts.  
+    当所有工作完成，关闭事件循环并返回数量。
 
 In Example 18-8, we could not use the mapping of futures to country codes we saw in Example 17-14 because the futures returned by asyncio.as_completed are not necessarily the same futures we pass into the as_completed call. Internally, the asyncio machinery replaces the future objects we provide with others that will, in the end, produce the same results.[7]  
+    例18-8中，我们不能使用例17-14中看到的对future和国家码的匹配，因为asyncio.as_completed返回的future不是一定与传入as_completed的顺序是一致的。在内部，asyncio机制将我们提供的future对象替换为最终会产生相同结果的其他对象。
 
 Because I could not use the futures as keys to retrieve the country code from a dict in case of failure, I implemented the custom FetchError exception (shown in Example 18-7). FetchError wraps a network exception and holds the country code associated with it, so the country code can be reported with the error in verbose mode.If there is no error, the country code is available as the result of the yield from future expression at the top of the for loop.  
+    因为在失败的情况下，我不能从字典中将future用作key来检索国家码，所以我实现了自定义的FetchError异常。FetchError包装了一个network异常并带有与之相关的国家码
 
 This wraps up the discussion of an asyncio example functionally equivalent to the flags2_threadpool.py we saw earlier. Next, we’ll implement enhancements to flags2_asyncio.py that will let us explore asyncio further.  
 
