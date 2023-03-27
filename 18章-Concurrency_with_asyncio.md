@@ -840,8 +840,57 @@ In Example 18-8, we could not use the mapping of futures to country codes we saw
     例18-8中，我们不能使用例17-14中看到的对future和国家码的匹配，因为asyncio.as_completed返回的future不是一定与传入as_completed的顺序是一致的。在内部，asyncio机制将我们提供的future对象替换为最终会产生相同结果的其他对象。
 
 Because I could not use the futures as keys to retrieve the country code from a dict in case of failure, I implemented the custom FetchError exception (shown in Example 18-7). FetchError wraps a network exception and holds the country code associated with it, so the country code can be reported with the error in verbose mode.If there is no error, the country code is available as the result of the yield from future expression at the top of the for loop.  
-    因为在失败的情况下，我不能从字典中将future用作key来检索国家码，所以我实现了自定义的FetchError异常。FetchError包装了一个network异常并带有与之相关的国家码
+    因为在失败的情况下，我不能从字典中将future用作key来检索国家码，所以我实现了自定义的FetchError异常。FetchError包装了一个network异常并带有与之相关的国家码，所以国家码可以用详细模式下的error来报告。如果没有error，作为for循环的顶部yield from future表达式的结果，国家码是可用的。
 
 This wraps up the discussion of an asyncio example functionally equivalent to the flags2_threadpool.py we saw earlier. Next, we’ll implement enhancements to flags2_asyncio.py that will let us explore asyncio further.  
+    这就终结了对功能等同于我们之前看到的flags2_threadpool.py的asyncio示例的讨论。接下来，我们将完成对flags2_asyncio.py的升级，这将让我们进一步探索asyncio。
 
-While discussing Example 18-7, I noted that save_flag performs disk I/O and should be executed asynchronously. The following section shows how.
+While discussing Example 18-7, I noted that save_flag performs disk I/O and should be executed asynchronously. The following section shows how.  
+    在讨论示例18-7的时候，我有提示save_flag执行了磁盘I/O，且他应给被异步执行。下面的小节介绍怎样实现。
+
+### Using an Executor to Avoid Blocking the Event Loop
+### 使用一个Executor来避免阻塞事件循环
+
+In the Python community, we tend to overlook the fact that local filesystem access is blocking, rationalizing that it doesn’t suffer from the higher latency of network access (which is also dangerously unpredictable). In contrast, Node.js programmers are constantly reminded that all filesystem functions are blocking because their signatures require a callback. Recall from Table 18-1 that blocking for disk I/O wastes millions of CPU cycles, and this may have a significant impact on the performance of the application.  
+    在Python社区中，我们倾向于忽视了一个事实，本地的文件系统访问是阻塞的，合理化它不会受到网络访问的更高延迟（这也是危险的不可预测的）。经过对比，Node.js程序员经常被提醒到，所有文件系统的方法都是阻塞的，因为他们的签名需要回调。回顾表18-1，磁盘I/O的阻塞花费数百万次的CPU周期，这可能会对应用程序的性能产生重大影响。
+
+In Example 18-7, the blocking function is save_flag. In the threaded version of the script (Example 17-14), save_flag blocks the thread that’s running the download_one function, but that’s only one of several worker threads. Behind the scenes, the blocking I/O call releases the GIL, so another thread can proceed. But in flags2_asyncio.py, save_flag blocks the single thread our code shares with the asyncio event loop, therefore the whole application freezes while the file is being saved. The solution to this problem is the run_in_executor method of the event loop object.
+
+Behind the scenes, the asyncio event loop has a thread pool executor, and you can send callables to be executed by it with run_in_executor. To use this feature in our example, only a few lines need to change in the download_one coroutine, as shown in Example 18-9.
+
+[7] A detailed discussion about this can be found in a thread I started in the python-tulip group, titled “Which other futures my come out of asyncio.as_completed?”. Guido responds, and gives insight on the implemen‐
+tation of as_completed as well as the close relationship between futures and coroutines in asyncio.
+
+Example 18-9. flags2_asyncio_executor.py: Using the default thread pool executor to run save_flag
+
+```python
+@asyncio.coroutine
+def download_one(cc, base_url, semaphore, verbose):
+    try:
+        with (yield from semaphore):
+            image = yield from get_flag(base_url, cc)
+    except web.HTTPNotFound:
+        status = HTTPStatus.not_found
+        msg = 'not found'
+    except Exception as exc:
+        raise FetchError(cc) from exc
+    else:
+        loop = asyncio.get_event_loop()  # 1
+        loop.run_in_executor(None,  # 2
+                save_flag, image, cc.lower() + '.gif')  # 3
+        status = HTTPStatus.ok
+        msg = 'OK'
+
+    if verbose and msg:
+        print(cc, msg)
+
+    return Result(status, cc)
+```
+
+1. Get a reference to the event loop object.
+2. The first argument to run_in_executor is an executor instance; if None, the default thread pool executor of the event loop is used.
+3. The remaining arguments are the callable and its positional arguments.
+
+    When I tested Example 18-9, there was no noticeable change in performance for using run_in_executor to save the image files because they are not large (13 KB each, on average). But you’ll see an effect if you edit the save_flag function in flags2_common.py to save 10 times as many bytes on each file—just by coding fp.write(img*10) instead of fp.write(img). With an average download size of 130 KB, the advantage of using run_in_executor becomes clear. If you’re downloading megapixel images, the speedup will be significant.
+
+The advantage of coroutines over callbacks becomes evident when we need to coordinate asynchronous requests, and not just make completely independent requests. The next section explains the problem and the solution.
