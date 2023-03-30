@@ -848,20 +848,21 @@ This wraps up the discussion of an asyncio example functionally equivalent to th
 While discussing Example 18-7, I noted that save_flag performs disk I/O and should be executed asynchronously. The following section shows how.  
     在讨论示例18-7的时候，我有提示save_flag执行了磁盘I/O，且他应给被异步执行。下面的小节介绍怎样实现。
 
-### Using an Executor to Avoid Blocking the Event Loop
-### 使用一个Executor来避免阻塞事件循环
+### Using an Executor to Avoid Blocking the Event Loop 使用一个Executor来避免阻塞事件循环
 
 In the Python community, we tend to overlook the fact that local filesystem access is blocking, rationalizing that it doesn’t suffer from the higher latency of network access (which is also dangerously unpredictable). In contrast, Node.js programmers are constantly reminded that all filesystem functions are blocking because their signatures require a callback. Recall from Table 18-1 that blocking for disk I/O wastes millions of CPU cycles, and this may have a significant impact on the performance of the application.  
     在Python社区中，我们倾向于忽视了一个事实，本地的文件系统访问是阻塞的，合理化它不会受到网络访问的更高延迟（这也是危险的不可预测的）。经过对比，Node.js程序员经常被提醒到，所有文件系统的方法都是阻塞的，因为他们的签名需要回调。回顾表18-1，磁盘I/O的阻塞花费数百万次的CPU周期，这可能会对应用程序的性能产生重大影响。
 
-In Example 18-7, the blocking function is save_flag. In the threaded version of the script (Example 17-14), save_flag blocks the thread that’s running the download_one function, but that’s only one of several worker threads. Behind the scenes, the blocking I/O call releases the GIL, so another thread can proceed. But in flags2_asyncio.py, save_flag blocks the single thread our code shares with the asyncio event loop, therefore the whole application freezes while the file is being saved. The solution to this problem is the run_in_executor method of the event loop object.
+In Example 18-7, the blocking function is save_flag. In the threaded version of the script (Example 17-14), save_flag blocks the thread that’s running the download_one function, but that’s only one of several worker threads. Behind the scenes, the blocking I/O call releases the GIL, so another thread can proceed. But in flags2_asyncio.py, save_flag blocks the single thread our code shares with the asyncio event loop, therefore the whole application freezes while the file is being saved. The solution to this problem is the run_in_executor method of the event loop object.  
+    在例18-7中，阻塞的方法是save_flag。在线程版本的脚本（例17-14）中，save_flag阻塞了运行download_one函数的线程，但那只是许多工作线程中的一条。在幕后，阻塞的I/O调用释放了GIL，所以其他线程才可以执行。但在flags2_asyncio.py中，save_flag阻塞了我们代码与asyncio事件循环共享的唯一线程，因此在保存文件的那段时间中整个应用处于冻结状态。解决这个问题的方式就是事件循环对象中的run_in_executor方法。
 
-Behind the scenes, the asyncio event loop has a thread pool executor, and you can send callables to be executed by it with run_in_executor. To use this feature in our example, only a few lines need to change in the download_one coroutine, as shown in Example 18-9.
+Behind the scenes, the asyncio event loop has a thread pool executor, and you can send callables to be executed by it with run_in_executor. To use this feature in our example, only a few lines need to change in the download_one coroutine, as shown in Example 18-9.  
+    在幕后，asyncni事件循环有一个线程池执行器，你可以用run_in_executor向其发送可调用对象进行执行。为了在我们的示例使用这一特性，仅有download_one协程的几行需要修改，如示例18-9所示。
 
-[7] A detailed discussion about this can be found in a thread I started in the python-tulip group, titled “Which other futures my come out of asyncio.as_completed?”. Guido responds, and gives insight on the implemen‐
-tation of as_completed as well as the close relationship between futures and coroutines in asyncio.
+[7] A detailed discussion about this can be found in a thread I started in the python-tulip group, titled “Which other futures my come out of asyncio.as_completed?”. Guido responds, and gives insight on the implementation of as_completed as well as the close relationship between futures and coroutines in asyncio.  
 
-Example 18-9. flags2_asyncio_executor.py: Using the default thread pool executor to run save_flag
+Example 18-9. flags2_asyncio_executor.py: Using the default thread pool executor to run save_flag  
+    例18-9. flags2_asyncio_executor.py：使用默认线程池执行器来运行save_flag
 
 ```python
 @asyncio.coroutine
@@ -887,10 +888,98 @@ def download_one(cc, base_url, semaphore, verbose):
     return Result(status, cc)
 ```
 
-1. Get a reference to the event loop object.
-2. The first argument to run_in_executor is an executor instance; if None, the default thread pool executor of the event loop is used.
-3. The remaining arguments are the callable and its positional arguments.
+1. Get a reference to the event loop object.  
+    获取对事件循环对象的引用。
+2. The first argument to run_in_executor is an executor instance; if None, the default thread pool executor of the event loop is used.  
+    run_in_executor的第一个参数是一个执行器示例；如果为None，就使用事件循环的默认线程池执行器。
+3. The remaining arguments are the callable and its positional arguments.  
+    其余的参数是可调用对象和他的位置参数。  
+`
 
-    When I tested Example 18-9, there was no noticeable change in performance for using run_in_executor to save the image files because they are not large (13 KB each, on average). But you’ll see an effect if you edit the save_flag function in flags2_common.py to save 10 times as many bytes on each file—just by coding fp.write(img*10) instead of fp.write(img). With an average download size of 130 KB, the advantage of using run_in_executor becomes clear. If you’re downloading megapixel images, the speedup will be significant.
+    When I tested Example 18-9, there was no noticeable change in performance for using run_in_executor to save the image files because they are not large (13 KB each, on average). But you’ll see an effect if you edit the save_flag function in flags2_common.py to save 10 times as many bytes on each file—just by coding fp.write(img*10) instead of fp.write(img). With an average download size of 130 KB, the advantage of using run_in_executor becomes clear. If you’re downloading megapixel images, the speedup will be significant.  
+    当我测试例18-9时，关于使用run_in_executor来保存图片文件没有明显的性能变化，因为他们都不大（平均每个13KB）。但是如果你将flags2_common.py中save_flag函数进行编辑，在每个文件上节省10倍的字节——只是将fp.write(img)替代为fp.write(img*10)。平均下载大小为130KB，使用run_in_executor的优势就变得明显了。如果你下载的是百万像素的图片，速度提升将是显著的。
 
-The advantage of coroutines over callbacks becomes evident when we need to coordinate asynchronous requests, and not just make completely independent requests. The next section explains the problem and the solution.
+The advantage of coroutines over callbacks becomes evident when we need to coordinate asynchronous requests, and not just make completely independent requests. The next section explains the problem and the solution.  
+    当我们需要协调异步请求，且不仅仅是完成独立的请求是，协程相较于回调的优势显而易见。下一节解释了问题与解决方案。
+
+
+## From Callbacks to Futures and Coroutines
+
+Event-oriented programming with coroutines requires some effort to master, so it’s good to be clear on how it improves on the classic callback style. This is the theme of this section.  
+
+Anyone with some experience in callback-style event-oriented programming knows the term “callback hell”: the nesting of callbacks when one operation depends on the result of the previous operation. If you have three asynchronous calls that must happen in succession, you need to code callbacks nested three levels deep. Example 18-10 is an example in JavaScript.  
+
+Example 18-10. Callback hell in JavaScript: nested anonymous functions, a.k.a. Pyramid of Doom  
+
+```javascript
+api_call1(request1, function (response1) {
+ // stage 1
+ var request2 = step1(response1);
+ api_call2(request2, function (response2) {
+ // stage 2
+ var request3 = step2(response2);
+ api_call3(request3, function (response3) {
+ // stage 3
+ step3(response3);
+ });
+ });
+});
+```
+
+In Example 18-10, api_call1, api_call2, and api_call3 are library functions your code uses to retrieve results asynchronously—perhaps api_call1 goes to a database and api_call2 gets data from a web service, for example. Each of these take a callback function, which in JavaScript are often anonymous functions (they are named stage1, stage2, and stage3 in the following Python example). The step1, step2, and step3 here represent regular functions of your application that process the responses received by the callbacks.  
+
+Example 18-11 shows what callback hell looks like in Python.  
+
+Example 18-11. Callback hell in Python: chained callbacks  
+
+```python
+def stage1(response1):
+ request2 = step1(response1)
+ api_call2(request2, stage2)
+
+
+def stage2(response2):
+ request3 = step2(response2)
+ api_call3(request3, stage3)
+
+
+def stage3(response3):
+ step3(response3)
+
+
+api_call1(request1, stage1)
+```
+
+Although the code in Example 18-11 is arranged very differently from Example 18-10, they do exactly the same thing, and the JavaScript example could be written using the same arrangement (but the Python code can’t be written in the JavaScript style because of the syntactic limitations of lambda).  
+
+Code organized as Example 18-10 or Example 18-11 is hard to read, but it’s even harder to write: each function does part of the job, sets up the next callback, and returns, to let the event loop proceed. At this point, all local context is lost. When the next callback (e.g., stage2) is executed, you don’t have the value of request2 any more. If you need it, you must rely on closures or external data structures to store it between the different stages of the processing.  
+
+That’s where coroutines really help. Within a coroutine, to perform three asynchronous actions in succession, you yield three times to let the event loop continue running. When a result is ready, the coroutine is activated with a .send() call. From the perspective of the event loop, that’s similar to invoking a callback. But for the users of a coroutine-style asynchronous API, the situation is vastly improved: the entire sequence of three operations is in one function body, like plain old sequential code with local variables to retain the context of the overall task under way. See Example 18-12.  
+
+Example 18-12. Coroutines and yield from enable asynchronous programming without callbacks
+
+```python
+@asyncio.coroutine
+def three_stages(request1):
+ response1 = yield from api_call1(request1)
+ # stage 1
+ request2 = step1(response1)
+ response2 = yield from api_call2(request2)
+ # stage 2
+ request3 = step2(response2)
+ response3 = yield from api_call3(request3)
+ # stage 3
+ step3(response3)
+
+loop.create_task(three_stages(request1)) # must explicitly schedule execution
+```
+
+Example 18-12 is much easier to follow the previous JavaScript and Python examples: the three stages of the operation appear one after the other inside the same function. This makes it trivial to use previous results in follow-up processing. It also provides a context for error reporting through exceptions.  
+
+Suppose in Example 18-11 the processing of the call api_call2(request2, stage2) raises an I/O exception (that’s the last line of the stage1 function). The exception cannot be caught in stage1 because api_call2 is an asynchronous call: it returns immediately, before any I/O is performed. In callback-based APIs, this is solved by registering two callbacks for each asynchronous call: one for handling the result of successful operations, another for handling errors. Work conditions in callback hell quickly deteriorate when error handling is involved.  
+
+In contrast, in Example 18-12, all the asynchronous calls for this three-stage operation are inside the same function, three_stages, and if the asynchronous calls api_call1, api_call2, and api_call3 raise exceptions we can handle them by putting the respective yield from lines inside try/except blocks.  
+
+This is a much better place than callback hell, but I wouldn’t call it coroutine heaven because there is a price to pay. Instead of regular functions, you must use coroutines and get used to yield from, so that’s the first obstacle. Once you write yield from in a function, it’s now a coroutine and you can’t simply call it, like we called api_call1(request1, stage1) in Example 18-11 to start the callback chain. You must explicitly schedule the execution of the coroutine with the event loop, or activate it using yield from in another coroutine that is scheduled for execution. Without the call loop.create_task(three_stages(request1)) in the last line, nothing would happen in Example 18-12.  
+
+The next example puts this theory into practice.  
