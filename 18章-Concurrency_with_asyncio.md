@@ -902,81 +902,92 @@ def download_one(cc, base_url, semaphore, verbose):
 The advantage of coroutines over callbacks becomes evident when we need to coordinate asynchronous requests, and not just make completely independent requests. The next section explains the problem and the solution.  
     当我们需要协调异步请求，且不仅仅是完成独立的请求是，协程相较于回调的优势显而易见。下一节解释了问题与解决方案。
 
-
 ## From Callbacks to Futures and Coroutines
 
 Event-oriented programming with coroutines requires some effort to master, so it’s good to be clear on how it improves on the classic callback style. This is the theme of this section.  
+    使用协程的面向事件编程需要一些努力才能掌握，所以最好搞清楚他是如何改善了传统的回调风格。这就是本节的主题。
 
 Anyone with some experience in callback-style event-oriented programming knows the term “callback hell”: the nesting of callbacks when one operation depends on the result of the previous operation. If you have three asynchronous calls that must happen in succession, you need to code callbacks nested three levels deep. Example 18-10 is an example in JavaScript.  
+    使用过回调风格进行面向事件编程的人都知道术语“回调地狱”：当某次操作依赖于之前操作的结果时的回调的嵌套。如果你有三个必须连续发生的异步调用，你需要写嵌套三级的回调。例18-10是JavaScript中的例子。
 
 Example 18-10. Callback hell in JavaScript: nested anonymous functions, a.k.a. Pyramid of Doom  
+    例18-10. JavaScript中的回调地狱：嵌套匿名函数，又名金字塔的厄运
 
 ```javascript
 api_call1(request1, function (response1) {
- // stage 1
- var request2 = step1(response1);
- api_call2(request2, function (response2) {
- // stage 2
- var request3 = step2(response2);
- api_call3(request3, function (response3) {
- // stage 3
- step3(response3);
- });
- });
+    // stage 1
+    var request2 = step1(response1);
+    api_call2(request2, function (response2) {
+        // stage 2
+        var request3 = step2(response2);
+        api_call3(request3, function (response3) {
+            // stage 3
+            step3(response3);
+        });
+    });
 });
 ```
 
 In Example 18-10, api_call1, api_call2, and api_call3 are library functions your code uses to retrieve results asynchronously—perhaps api_call1 goes to a database and api_call2 gets data from a web service, for example. Each of these take a callback function, which in JavaScript are often anonymous functions (they are named stage1, stage2, and stage3 in the following Python example). The step1, step2, and step3 here represent regular functions of your application that process the responses received by the callbacks.  
+    在示例18-10中，api_call1, api_call2与api_call3都是你的代码用来异步检索结果的库函数——例如，也许api_call1进入了一个数据库，api_call2从web服务获取数据。他们都有一个回调函数，这在JS中是通常是匿名函数（这在下面Python例子中被称为stage1，stage2，stage3）。这里的step1，step2与step3代表了你的应用中的常规函数，用来处理回调函数接收到地响应。
 
 Example 18-11 shows what callback hell looks like in Python.  
+    例18-11展示了Python中的回调地狱是什么样子的。
 
 Example 18-11. Callback hell in Python: chained callbacks  
+    例18-11. Python中的回调地狱：连锁回调
 
 ```python
 def stage1(response1):
- request2 = step1(response1)
- api_call2(request2, stage2)
+    request2 = step1(response1)
+    api_call2(request2, stage2)
 
 
 def stage2(response2):
- request3 = step2(response2)
- api_call3(request3, stage3)
+    request3 = step2(response2)
+    api_call3(request3, stage3)
 
 
 def stage3(response3):
- step3(response3)
+    step3(response3)
 
 
 api_call1(request1, stage1)
 ```
 
 Although the code in Example 18-11 is arranged very differently from Example 18-10, they do exactly the same thing, and the JavaScript example could be written using the same arrangement (but the Python code can’t be written in the JavaScript style because of the syntactic limitations of lambda).  
+    虽然例18-11的代码与18-10的在顺序上完全不同，但他们实际做的是相同的事，JavaScript例子可以用相同的排列来写（但由于lambda的语法限制，Python的代码不能用JS的风格来写）。
 
 Code organized as Example 18-10 or Example 18-11 is hard to read, but it’s even harder to write: each function does part of the job, sets up the next callback, and returns, to let the event loop proceed. At this point, all local context is lost. When the next callback (e.g., stage2) is executed, you don’t have the value of request2 any more. If you need it, you must rely on closures or external data structures to store it between the different stages of the processing.  
+    像例18-10或18-11的代码结构阅读起来很困难，但更难的是编写：每个函数做一部分工作，设置下一个回调，然后返回，来让事件循环继续运行。此时，所有本地上下文都丢失了。当下一个回调（如stage2）执行时，你不再拥有request2的值。如果你需要这个值，你必须依赖闭包或额外的数据结构，在不同执行stage之间来存储他。
 
 That’s where coroutines really help. Within a coroutine, to perform three asynchronous actions in succession, you yield three times to let the event loop continue running. When a result is ready, the coroutine is activated with a .send() call. From the perspective of the event loop, that’s similar to invoking a callback. But for the users of a coroutine-style asynchronous API, the situation is vastly improved: the entire sequence of three operations is in one function body, like plain old sequential code with local variables to retain the context of the overall task under way. See Example 18-12.  
+    这就是协程真正有用的地方。在协程内部，为了连续执行3个异步动作，你会yield 3次来让事件循环继续运行。当一个结果ready时，协程就会被.send()调用激活。从事件循环的角度来看，这类似于调用回调。但对于协程风格异步API的使用者来说，这种情况大大改善了：三次操作的整体顺序都在一个函数体内，像是带有局部变量的普通旧顺序代码一样，以保留进行中的整个任务的上下文。看看例18-12。
 
-Example 18-12. Coroutines and yield from enable asynchronous programming without callbacks
+Example 18-12. Coroutines and yield from enable asynchronous programming without callbacks  
+    例18-12. 协程与yield from让异步编程脱离回调
 
 ```python
 @asyncio.coroutine
 def three_stages(request1):
- response1 = yield from api_call1(request1)
- # stage 1
- request2 = step1(response1)
- response2 = yield from api_call2(request2)
- # stage 2
- request3 = step2(response2)
- response3 = yield from api_call3(request3)
- # stage 3
- step3(response3)
+    response1 = yield from api_call1(request1)
+    # stage 1
+    request2 = step1(response1)
+    response2 = yield from api_call2(request2)
+    # stage 2
+    request3 = step2(response2)
+    response3 = yield from api_call3(request3)
+    # stage 3
+    step3(response3)
 
 loop.create_task(three_stages(request1)) # must explicitly schedule execution
 ```
 
 Example 18-12 is much easier to follow the previous JavaScript and Python examples: the three stages of the operation appear one after the other inside the same function. This makes it trivial to use previous results in follow-up processing. It also provides a context for error reporting through exceptions.  
+    例18-12比之前的JS与Python示例更容易理解：操作的三个stage在同一个函数中依次出现。这使得在后续处理中使用前面的结果这种事变的轻而易举。同时也通过异常提供了error报告的上下文。
 
 Suppose in Example 18-11 the processing of the call api_call2(request2, stage2) raises an I/O exception (that’s the last line of the stage1 function). The exception cannot be caught in stage1 because api_call2 is an asynchronous call: it returns immediately, before any I/O is performed. In callback-based APIs, this is solved by registering two callbacks for each asynchronous call: one for handling the result of successful operations, another for handling errors. Work conditions in callback hell quickly deteriorate when error handling is involved.  
+    假如例18-11中调用api_call2(request2, stage2)的操作导致了I/O异常（在stage1函数的最后一行）。那这个异常不能在stage1中被捕捉，因为api_call2是一个异步调用：他在任何I/O执行前就立刻返回了。在基于回调的API中，这种情况通过为每次异步调用登记两个回调解决：一个用来处理成功操作的结果，另一个用来处理error。当涉及error处理时，回调地狱的工作条件会迅速恶化。
 
 In contrast, in Example 18-12, all the asynchronous calls for this three-stage operation are inside the same function, three_stages, and if the asynchronous calls api_call1, api_call2, and api_call3 raise exceptions we can handle them by putting the respective yield from lines inside try/except blocks.  
 
