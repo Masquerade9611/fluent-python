@@ -990,7 +990,105 @@ Suppose in Example 18-11 the processing of the call api_call2(request2, stage2) 
     假如例18-11中调用api_call2(request2, stage2)的操作导致了I/O异常（在stage1函数的最后一行）。那这个异常不能在stage1中被捕捉，因为api_call2是一个异步调用：他在任何I/O执行前就立刻返回了。在基于回调的API中，这种情况通过为每次异步调用登记两个回调解决：一个用来处理成功操作的结果，另一个用来处理error。当涉及error处理时，回调地狱的工作条件会迅速恶化。
 
 In contrast, in Example 18-12, all the asynchronous calls for this three-stage operation are inside the same function, three_stages, and if the asynchronous calls api_call1, api_call2, and api_call3 raise exceptions we can handle them by putting the respective yield from lines inside try/except blocks.  
+    对比之下，示例18-12中为这三个stage操作进行的所有异步调用都在同一个函数three_stages中，如果这些异步调用api_call1 api_call2 api_call3抛出了异常，我们可以通过将相应的yield from行放在try/except块中来处理他们。
 
 This is a much better place than callback hell, but I wouldn’t call it coroutine heaven because there is a price to pay. Instead of regular functions, you must use coroutines and get used to yield from, so that’s the first obstacle. Once you write yield from in a function, it’s now a coroutine and you can’t simply call it, like we called api_call1(request1, stage1) in Example 18-11 to start the callback chain. You must explicitly schedule the execution of the coroutine with the event loop, or activate it using yield from in another coroutine that is scheduled for execution. Without the call loop.create_task(three_stages(request1)) in the last line, nothing would happen in Example 18-12.  
+    这是个比回调地狱好得多的地方，但我不能就将协程称作天堂，因为这要付出代价。你必须用协程替换常规函数，且习惯于yield from，所以这是第一层障碍。一旦你在一个函数中写了yield from，他就变为了协程，你不能简单地像18-11中一样调用api_call1(request1, stage1)一样调用它。而且你必须使用事件循环显式地安排协程的执行逻辑，或者在另一个安排执行的协程中使用yield from来驱动他。删除最后一行的对loop.create_task(three_stages(requests1))的调用的话，示例18-12将不会发生任何事情。
 
 The next example puts this theory into practice.  
+    下一个例子将这个理论应用于实践。
+
+### Doing Multiple Requests for Each Download  为每次下载执行多次请求
+
+Suppose you want to save each country flag with the name of the country and the country code, instead of just the country code. Now you need to make two HTTP requests per flag: one to get the flag image itself, the other to get the metadata.json file in the same directory as the image: that’s where the name of the country is recorded.  
+    假设你想用国家名与国家码来保存每个国家国旗，而不仅仅是国家码。现在你需要为每个flag做两次HTTP请求：一个用来获取flag图像本身，另一个来获取图像同一目录下的metadata.json文件：这是记录国家名的地方。
+
+Articulating multiple requests in the same task is easy in the threaded script: just make one request then the other, blocking the thread twice, and keeping both pieces of data (country code and name) in local variables, ready to use when saving the files. If you need to do the same in an asynchronous script with callbacks, you start to smell the sulfur of callback hell: the country code and name will need to be passed around in a closure or held somewhere until you can save the file because each callback runs in a different local context. Coroutines and yield from provide relief from that. The solution is not as simple as with threads, but more manageable than chained or nested callbacks.  
+    在线程脚本中很容易在同一任务重清楚表达多个请求：仅仅是做一次请求然后再做一次，阻塞线程两次，然后将两组数据（国家码与国家名）保存进本地变量，准备在保存文件时使用。如果你需要在用回调的异步脚本做到相同的事，你会开始嗅到回调地狱的硫磺味道：国家码与国家名将需要在闭包中传递或保存在某个地方，直到你可以保存文件，因为每个回调都运行在不同的本地上下文。协程与yield from可以缓解这种情况。这种解决方法没有比线程式更简单，但相比连锁或嵌套式的回调会更可控。
+
+Example 18-13 shows code from the third variation of the asyncio flag downloading script, using the country name to save each flag. The download_many and downloader_coro are unchanged from flags2_asyncio.py (Examples 18-7 and 18-8). The changes are:  
+
+download_one  
+    This coroutine now uses yield from to delegate to get_flag and the new get_country coroutine.
+get_flag  
+    Most code from this coroutine was moved to a new http_get coroutine so it can also be used by get_country.
+get_country  
+    This coroutine fetches the metadata.json file for the country code, and gets the name of the country from it.  
+http_get  
+    Common code for getting a file from the Web.  
+
+Example 18-13. flags3_asyncio.py: more coroutine delegation to perform two requests per flag
+
+```python
+@asyncio.coroutine
+def http_get(url):
+    res = yield from aiohttp.request('GET', url)
+    if res.status == 200:
+        ctype = res.headers.get('Content-type', '').lower()
+        if 'json' in ctype or url.endswith('json'):
+            data = yield from res.json()  # 1
+        else:
+            data = yield from res.read()  # 2
+            return data
+
+    elif res.status == 404:
+        raise web.HTTPNotFound()
+    else:
+        raise aiohttp.errors.HttpProcessingError(
+            code=res.status, message=res.reason,
+            headers=res.headers)
+
+
+@asyncio.coroutine
+def get_country(base_url, cc):
+    url = '{}/{cc}/metadata.json'.format(base_url, cc=cc.lower())
+    metadata = yield from http_get(url)  # 3
+    return metadata['country']
+
+
+@asyncio.coroutine
+def get_flag(base_url, cc):
+    url = '{}/{cc}/{cc}.gif'.format(base_url, cc=cc.lower())
+    return (yield from http_get(url))  # 4
+
+
+@asyncio.coroutine
+def download_one(cc, base_url, semaphore, verbose):
+    try:
+        with (yield from semaphore):  # 5
+            image = yield from get_flag(base_url, cc)
+        with (yield from semaphore):
+            country = yield from get_country(base_url, cc)
+    except web.HTTPNotFound:
+        status = HTTPStatus.not_found
+        msg = 'not found'
+    except Exception as exc:
+        raise FetchError(cc) from exc
+    else:
+        country = country.replace(' ', '_')
+        filename = '{}-{}.gif'.format(country, cc)
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(None, save_flag, image, filename)
+        status = HTTPStatus.ok
+        msg = 'OK'
+
+    if verbose and msg:
+        print(cc, msg)
+
+    return Result(status, cc)
+
+```
+
+1. If the content type has 'json' in it or the url ends with .json, use the response .json() method to parse it and return a Python data structure—in this case, a dict.  
+2. Otherwise, use .read() to fetch the bytes as they are.  
+3. metadata will receive a Python dict built from the JSON contents.  
+4. The outer parentheses here are required because the Python parser gets confused and produces a syntax error when itseesthe keywords return yield from linedup like that.  
+5. I put the calls to get_flag and get_country in separate with blocks controlled by the semaphore because I want to keep it acquired for the shortest possible time.  
+
+The yield from syntax appears nine times in Example 18-13. By now you should be getting the hang of how this construct is used to delegate from one coroutine to another without blocking the event loop.  
+
+The challenge is to know when you have to use yield from and when you can’t use it. The answer in principle is easy, you yield from coroutines and asyncio.Future instances—including tasks. But some APIs are tricky, mixing coroutines and plain functions in seemingly arbitrary ways, like the StreamWriter class we’ll use in one of the servers in the next section.  
+
+Example 18-13 wraps up the flags2 set of examples. I encourage you to play with them to develop an intuition of how concurrent HTTP clients perform. Use the -a, -e, and -l command-line options to control the number of downloads, and the -m option to set the number of concurrent downloads. Run tests against the LOCAL, REMOTE, DELAY, and ERROR servers. Discover the optimum number of concurrent downloads to maximize throughput against each server. Tweak the settings of the vaurien_error_delay.sh script to add or remove errors and delays.  
+
+We’ll now go from client scripts to writing servers with asyncio.  
