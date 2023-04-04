@@ -1007,17 +1007,23 @@ Articulating multiple requests in the same task is easy in the threaded script: 
     在线程脚本中很容易在同一任务重清楚表达多个请求：仅仅是做一次请求然后再做一次，阻塞线程两次，然后将两组数据（国家码与国家名）保存进本地变量，准备在保存文件时使用。如果你需要在用回调的异步脚本做到相同的事，你会开始嗅到回调地狱的硫磺味道：国家码与国家名将需要在闭包中传递或保存在某个地方，直到你可以保存文件，因为每个回调都运行在不同的本地上下文。协程与yield from可以缓解这种情况。这种解决方法没有比线程式更简单，但相比连锁或嵌套式的回调会更可控。
 
 Example 18-13 shows code from the third variation of the asyncio flag downloading script, using the country name to save each flag. The download_many and downloader_coro are unchanged from flags2_asyncio.py (Examples 18-7 and 18-8). The changes are:  
+    例18-13展示了asyncio flag下载脚本的第三个变异版本，使用国家名来保存每个flag。来自flags2_asyncio.py的download_many与downloader_coro没有变化。改动内容如下：
 
 download_one  
-    This coroutine now uses yield from to delegate to get_flag and the new get_country coroutine.
+    This coroutine now uses yield from to delegate to get_flag and the new get_country coroutine.  
+    该协助现在用yield from委托给get_flag与新的get_country协程。
 get_flag  
-    Most code from this coroutine was moved to a new http_get coroutine so it can also be used by get_country.
+    Most code from this coroutine was moved to a new http_get coroutine so it can also be used by get_country.  
+    该协程的大部分代码被移至新协程http_get，所以他也可以被get_country使用。
 get_country  
     This coroutine fetches the metadata.json file for the country code, and gets the name of the country from it.  
+    该协程获取记录国家码的metadata.json文件，然后从中获取国家名。
 http_get  
     Common code for getting a file from the Web.  
+    用于从web获取文件的通用代码。
 
-Example 18-13. flags3_asyncio.py: more coroutine delegation to perform two requests per flag
+Example 18-13. flags3_asyncio.py: more coroutine delegation to perform two requests per flag  
+    例18-13. flag3_asyncio.py：更多的协程委托，为每个flag执行两次请求
 
 ```python
 @asyncio.coroutine
@@ -1029,7 +1035,7 @@ def http_get(url):
             data = yield from res.json()  # 1
         else:
             data = yield from res.read()  # 2
-            return data
+        return data
 
     elif res.status == 404:
         raise web.HTTPNotFound()
@@ -1080,15 +1086,24 @@ def download_one(cc, base_url, semaphore, verbose):
 ```
 
 1. If the content type has 'json' in it or the url ends with .json, use the response .json() method to parse it and return a Python data structure—in this case, a dict.  
+    如果content type包含json或url以.json结尾，用response的.json()方法来解析，并返回一个Python数据结构——该case中是字典。
 2. Otherwise, use .read() to fetch the bytes as they are.  
+    否则用.read()获取原样的字节。
 3. metadata will receive a Python dict built from the JSON contents.  
-4. The outer parentheses here are required because the Python parser gets confused and produces a syntax error when itseesthe keywords return yield from linedup like that.  
+    metadata将接受到一个根据JSON内容构建的Python字典。
+4. The outer parentheses here are required because the Python parser gets confused and produces a syntax error when it sees the keywords return yield from lined up like that.  
+    这里的小括号是必要的，因为Python解析器在看到像“return yield from”这样的关键字时会感到困惑并产生语法错误。
 5. I put the calls to get_flag and get_country in separate with blocks controlled by the semaphore because I want to keep it acquired for the shortest possible time.  
+    我将对get_flag与get_country的调用与信号量控制的块分开，因为我想尽可能短时间地获得他。
 
 The yield from syntax appears nine times in Example 18-13. By now you should be getting the hang of how this construct is used to delegate from one coroutine to another without blocking the event loop.  
+    yield from语法在例18-13出现了9次。如今你应该知道如何使用这种结构，在不阻塞事件循环的情况下从一个协程委派到另一个协程的窍门了。
 
 The challenge is to know when you have to use yield from and when you can’t use it. The answer in principle is easy, you yield from coroutines and asyncio.Future instances—including tasks. But some APIs are tricky, mixing coroutines and plain functions in seemingly arbitrary ways, like the StreamWriter class we’ll use in one of the servers in the next section.  
+    挑战在于知道使用yield from的时机与不能使用的时机。原则上的答案很简单，对协程，asyncio.Future实例（包括task）进行yield from。但一些API很棘手，他们以看似任意的方式将协程与普通函数混合在一起，就像是下一节我们将在一个服务用到的StremWriter类。
 
 Example 18-13 wraps up the flags2 set of examples. I encourage you to play with them to develop an intuition of how concurrent HTTP clients perform. Use the -a, -e, and -l command-line options to control the number of downloads, and the -m option to set the number of concurrent downloads. Run tests against the LOCAL, REMOTE, DELAY, and ERROR servers. Discover the optimum number of concurrent downloads to maximize throughput against each server. Tweak the settings of the vaurien_error_delay.sh script to add or remove errors and delays.  
+    例18-13总结了flags2示例集。我鼓励你使用他们直观地了解并发HTTP客户端是如何执行的。使用-a -e -l的命令行参数控制下载数量，-m选项来设置并发下载数。针对LOCAL、REMOTE、DELAY和ERROR服务器运行测试。发现并发下载的最佳数量，以最大限度地提高每台服务器的吞吐量。 调整 vaurien_error_delay.sh 脚本的设置以添加或删除错误和延迟。  
 
 We’ll now go from client scripts to writing servers with asyncio.  
+    我们现在从客户端脚本转到用asyncio写服务端。
