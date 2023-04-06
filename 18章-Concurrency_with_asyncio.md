@@ -1107,3 +1107,79 @@ Example 18-13 wraps up the flags2 set of examples. I encourage you to play with 
 
 We’ll now go from client scripts to writing servers with asyncio.  
     我们现在从客户端脚本转到用asyncio写服务端。
+
+## Writing asyncio Servers 编写asyncio服务
+
+The classic toy example of a TCP server is an echo server. We’ll build slightly more interesting toys: Unicode character finders, first using plain TCP, then using HTTP. These servers will allow clients to query for Unicode characters based on words in their canonical names, using the unicodedata module we discussed in “The Unicode Database” on page 127. A Telnet session with the TCP character finder server, searching for chess pieces and characters with the word “sun” is shown in Figure 18-2.  
+    TCP服务的经典玩具示例是回显服务。我们会略微构建更有趣的玩具：Unicode字符查找器，先使用普通的TCP，然后用HTTP。这些服务允许客户端使用我们在第127页的“Unicode 数据库”中讨论的 unicodedata模块，根据规范名称中的单词查询Unicode字符。图18-2显示了与TCP字符查找服务器的Telnet会话，搜索棋子和带有单词“sun”的字符。
+
+Figure 18-2. A Telnet session with the tcp_charfinder.py server: querying for “chess black” and “sun”.
+
+Now, on to the implementations.  
+
+### An asyncio TCP Server
+
+Most of the logic in these examples is in the charfinder.py module, which has nothing concurrent about it. You can use charfinder.py as a command-line character finder, but more importantly, it was designed to provide content for our asyncio servers. The code for charfinder.py is in the Fluent Python code repository.
+
+The charfinder module indexes each word that appears in character names in the Unicode database bundled with Python, and creates an inverted index stored in a dict. For example, the inverted index entry for the key 'SUN' contains a set with the 10 Unicode characters that have that word in their names. The inverted index is saved in a local charfinder_index.pickle file. If multiple words appear in the query, charfinder computes the intersection of the sets retrieved from the index.  
+
+We’ll now focus on the tcp_charfinder.py script that is answering the queries in Figure 18-2. Because I have a lot to say about this code, I’ve split it into two parts: Example 18-14 and Example 18-15.  
+
+Example 18-14. tcp_charfinder.py: a simple TCP server using asyncio.start_server; code for this module continues in Example 18-15
+
+```python
+import sys
+import asyncio
+
+from charfinder import UnicodeNameIndex  # 1
+
+CRLF = b'\r\n'
+PROMPT = b'?> '
+
+index = UnicodeNameIndex()  # 2
+
+@asyncio.coroutine
+def handle_queries(reader, writer):  # 3
+    while True:  # 4
+        writer.write(PROMPT) # can't yield from!  # 5
+        yield from writer.drain() # must yield from!  # 6
+        data = yield from reader.readline()  # 7
+        try:
+            query = data.decode().strip()
+        except UnicodeDecodeError:  # 8
+            query = '\x00'
+        client = writer.get_extra_info('peername')  # 9
+        print('Received from {}: {!r}'.format(client, query))  # 10
+        if query:
+            if ord(query[:1]) < 32:  # 11
+            break
+        lines = list(index.find_description_strs(query))  # 12
+        if lines:
+            writer.writelines(line.encode() + CRLF for line in lines)  # 13
+        writer.write(index.status(query, len(lines)).encode() + CRLF)  # 14
+
+        yield from writer.drain()  # 15
+        print('Sent {} results'.format(len(lines)))  # 16
+ 
+    print('Close the client socket')  # 17
+    writer.close()  # 18
+```
+
+1. UnicodeNameIndex is the class that builds the index of names and provides querying methods.
+2. When instantiated, UnicodeNameIndex uses charfinder_index.pickle, if available, or builds it, so the first run may take a few seconds longer to start.[8]
+3. This is the coroutine we need to pass to asyncio_startserver; the arguments received are an asyncio.StreamReader and an asyncio.StreamWriter.
+4. This loop handles a session that lasts until any control character is received from the client.
+5. The StreamWriter.write method is not a coroutine, just a plain function; this line sends the ?> prompt.
+6. StreamWriter.drain flushes the writer buffer; it is a coroutine, so it must be called with yield from.
+7. StreamWriter.readline is a coroutine; it returns bytes.
+8. A UnicodeDecodeError may happen when the Telnet client sends control characters; if that happens, we pretend a null character was sent, for simplicity.
+9. This returns the remote address to which the socket is connected.
+10. Log the query to the server console.
+11. Exit the loop if a control or null character was received.
+12. This returns a generator that yields strings with the Unicode codepoint, the actual character and its name (e.g., U+0039\t9\tDIGIT NINE); for simplicity, I build a list from it.
+13. Send the lines converted to bytes using the default UTF-8 encoding, appending a carriage return and a line feed to each; note that the argument is a generator expression.
+14. Write a status line such as 627 matches for 'digit'.
+15. Flush the output buffer.
+16. Log the response to the server console.
+17. Log the end of the session to the server console.
+18. Close the StreamWriter.
