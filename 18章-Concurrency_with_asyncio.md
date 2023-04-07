@@ -1113,15 +1113,19 @@ We’ll now go from client scripts to writing servers with asyncio.
 The classic toy example of a TCP server is an echo server. We’ll build slightly more interesting toys: Unicode character finders, first using plain TCP, then using HTTP. These servers will allow clients to query for Unicode characters based on words in their canonical names, using the unicodedata module we discussed in “The Unicode Database” on page 127. A Telnet session with the TCP character finder server, searching for chess pieces and characters with the word “sun” is shown in Figure 18-2.  
     TCP服务的经典玩具示例是回显服务。我们会略微构建更有趣的玩具：Unicode字符查找器，先使用普通的TCP，然后用HTTP。这些服务允许客户端使用我们在第127页的“Unicode 数据库”中讨论的 unicodedata模块，根据规范名称中的单词查询Unicode字符。图18-2显示了与TCP字符查找服务器的Telnet会话，搜索棋子和带有单词“sun”的字符。
 
-Figure 18-2. A Telnet session with the tcp_charfinder.py server: querying for “chess black” and “sun”.
+Figure 18-2. A Telnet session with the tcp_charfinder.py server: querying for “chess black” and “sun”.  
+    图18-2. tcp_charfinder.py服务的Telnet会话：查询“黑棋”和“太阳”。
 
 Now, on to the implementations.  
+    现在，接下来是实现。
 
 ### An asyncio TCP Server
 
-Most of the logic in these examples is in the charfinder.py module, which has nothing concurrent about it. You can use charfinder.py as a command-line character finder, but more importantly, it was designed to provide content for our asyncio servers. The code for charfinder.py is in the Fluent Python code repository.
+Most of the logic in these examples is in the charfinder.py module, which has nothing concurrent about it. You can use charfinder.py as a command-line character finder, but more importantly, it was designed to provide content for our asyncio servers. The code for charfinder.py is in the Fluent Python code repository.  
+    这个示例的大部分逻辑在charfinder.py模块，这里没有并发相关内容。你可以用charfinder.py作为一个命令行字符查找器，但更重要的是，他的目的是为我们的asyncio服务提供内容。charfinder.py的代码在Fluent Python代码库中。
 
 The charfinder module indexes each word that appears in character names in the Unicode database bundled with Python, and creates an inverted index stored in a dict. For example, the inverted index entry for the key 'SUN' contains a set with the 10 Unicode characters that have that word in their names. The inverted index is saved in a local charfinder_index.pickle file. If multiple words appear in the query, charfinder computes the intersection of the sets retrieved from the index.  
+    charfinder模块为出现在Python捆绑的Unicode数据库中字符名称中的每个单词做索引，并创建一个倒排索引保存在字典中。举个例子，倒排索引
 
 We’ll now focus on the tcp_charfinder.py script that is answering the queries in Figure 18-2. Because I have a lot to say about this code, I’ve split it into two parts: Example 18-14 and Example 18-15.  
 
