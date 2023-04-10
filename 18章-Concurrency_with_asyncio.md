@@ -1125,11 +1125,13 @@ Most of the logic in these examples is in the charfinder.py module, which has no
     这个示例的大部分逻辑在charfinder.py模块，这里没有并发相关内容。你可以用charfinder.py作为一个命令行字符查找器，但更重要的是，他的目的是为我们的asyncio服务提供内容。charfinder.py的代码在Fluent Python代码库中。
 
 The charfinder module indexes each word that appears in character names in the Unicode database bundled with Python, and creates an inverted index stored in a dict. For example, the inverted index entry for the key 'SUN' contains a set with the 10 Unicode characters that have that word in their names. The inverted index is saved in a local charfinder_index.pickle file. If multiple words appear in the query, charfinder computes the intersection of the sets retrieved from the index.  
-    charfinder模块为出现在Python捆绑的Unicode数据库中字符名称中的每个单词做索引，并创建一个倒排索引保存在字典中。举个例子，倒排索引
+    charfinder模块为出现在Python捆绑的Unicode数据库中字符名称中的每个单词做索引，并创建一个倒排索引保存在字典中。举个例子，关键词"SUN"的倒排索引包含了一组名称中包含该词的10个Unicode字符。倒排索引被保存在本地的charfinder_index.pickle文件中。如果多个单词出现在搜索中，charfinder会计算从索引中检索到的集合的交集。
 
 We’ll now focus on the tcp_charfinder.py script that is answering the queries in Figure 18-2. Because I have a lot to say about this code, I’ve split it into two parts: Example 18-14 and Example 18-15.  
+    我们现在来看tcp_charfinder.py脚本，这回答了图18-2的疑问。因为关于这个代码我有许多要说，我将其区分为示例18-14与18-15。
 
-Example 18-14. tcp_charfinder.py: a simple TCP server using asyncio.start_server; code for this module continues in Example 18-15
+Example 18-14. tcp_charfinder.py: a simple TCP server using asyncio.start_server; code for this module continues in Example 18-15  
+    例18-14. tcp_charfinder.py：一个使用asyncio.start_server的简单TCP服务；此模块的代码将在例18-15中继续
 
 ```python
 import sys
@@ -1169,21 +1171,39 @@ def handle_queries(reader, writer):  # 3
     writer.close()  # 18
 ```
 
-1. UnicodeNameIndex is the class that builds the index of names and provides querying methods.
-2. When instantiated, UnicodeNameIndex uses charfinder_index.pickle, if available, or builds it, so the first run may take a few seconds longer to start.[8]
-3. This is the coroutine we need to pass to asyncio_startserver; the arguments received are an asyncio.StreamReader and an asyncio.StreamWriter.
-4. This loop handles a session that lasts until any control character is received from the client.
-5. The StreamWriter.write method is not a coroutine, just a plain function; this line sends the ?> prompt.
-6. StreamWriter.drain flushes the writer buffer; it is a coroutine, so it must be called with yield from.
-7. StreamWriter.readline is a coroutine; it returns bytes.
-8. A UnicodeDecodeError may happen when the Telnet client sends control characters; if that happens, we pretend a null character was sent, for simplicity.
-9. This returns the remote address to which the socket is connected.
-10. Log the query to the server console.
-11. Exit the loop if a control or null character was received.
-12. This returns a generator that yields strings with the Unicode codepoint, the actual character and its name (e.g., U+0039\t9\tDIGIT NINE); for simplicity, I build a list from it.
-13. Send the lines converted to bytes using the default UTF-8 encoding, appending a carriage return and a line feed to each; note that the argument is a generator expression.
-14. Write a status line such as 627 matches for 'digit'.
-15. Flush the output buffer.
-16. Log the response to the server console.
-17. Log the end of the session to the server console.
-18. Close the StreamWriter.
+1. UnicodeNameIndex is the class that builds the index of names and provides querying methods.  
+    UnicodeNameIndex是构建了名称索引并提供查询方法的类。
+2. When instantiated, UnicodeNameIndex uses charfinder_index.pickle, if available, or builds it, so the first run may take a few seconds longer to start.[8]  
+    当实例化后，UnicodeNameIndex用到charfinder_index.pickle（如果可用）或构建它，所以首次运行可能会花费几秒才能开始。
+3. This is the coroutine we need to pass to asyncio_startserver; the arguments received are an asyncio.StreamReader and an asyncio.StreamWriter.  
+    这是我们需要传入asyncio_startserver的协程；收到的参数是一个asyncio.StreamReader与一个asyncio.StreamWriter。
+4. This loop handles a session that lasts until any control character is received from the client.  
+    这个循环处理一个会话，持续到从客户端收到任何控制符为止。
+5. The StreamWriter.write method is not a coroutine, just a plain function; this line sends the ?> prompt.  
+    StreamWriter.writer方法不是协程，只是个普通方法；这一行发送?>提示符。
+6. StreamWriter.drain flushes the writer buffer; it is a coroutine, so it must be called with yield from.  
+    StreamWriter.drain刷新writer的缓存；他是一个协程，所以必须用yield from来调用。
+7. StreamWriter.readline is a coroutine; it returns bytes.  
+    StreamWriter.readline是协程；他返回字节。
+8. A UnicodeDecodeError may happen when the Telnet client sends control characters; if that happens, we pretend a null character was sent, for simplicity.  
+    当Telnet客户端发送控制符时可能会发生UnicodeDecodeError；如果发生这种情况，为简单起见，我们假装接收到了一个空字符。
+9. This returns the remote address to which the socket is connected.  
+    这返回socket连接的远程地址。
+10. Log the query to the server console.  
+    记录对服务控制台的查询。
+11. Exit the loop if a control or null character was received.  
+    如果接受到控制符或空字符则退出循环。
+12. This returns a generator that yields strings with the Unicode code point, the actual character and its name (e.g., U+0039\t9\tDIGIT NINE); for simplicity, I build a list from it.  
+    这行返回一个生成器，生成包含Unicode码位置产出字符，实际的字符和他的名字的字符串（如 U+0039\t9\tDIGIT NINE）；简单起见，我用它构建了一个列表。
+13. Send the lines converted to bytes using the default UTF-8 encoding, appending a carriage return and a line feed to each; note that the argument is a generator expression.  
+    将用默认的UTF-8编码转为字节的一行发送出去，分别附加一个回车符和一个换行符；注意参数是一个生成器表达式。
+14. Write a status line such as 627 matches for 'digit'.  
+    写一个状态行，例如'digit'有627个匹配。
+15. Flush the output buffer.  
+    刷新输出缓存。
+16. Log the response to the server console.  
+    记录服务控制台的响应。
+17. Log the end of the session to the server console.  
+    记录本次到服务控制台会话的结尾。
+18. Close the StreamWriter.  
+    关闭StreamWriter。
