@@ -1274,7 +1274,8 @@ Note how run_until_complete accepts either a coroutine (the result of start_serv
 You may find it easier to understand how control flows in tcp_charfinder.py if you take a close look at the output it generates on the server console, listed in Example 18-16.  
     如果你仔细看了列在例18-16中的服务控制台生成的输出，你可能会发现更容易理解tcp_charfinder.py的控制流。
 
-Example 18-16. tcp_charfinder.py: this is the server side of the session depicted in Figure 18-2
+Example 18-16. tcp_charfinder.py: this is the server side of the session depicted in Figure 18-2  
+    例18-16. tcp_charfinder.py：这是图18-2描绘的会话服务端
 
 ```
 $ python3 tcp_charfinder.py
@@ -1287,13 +1288,19 @@ Received from ('127.0.0.1', 62910): '\x00'  # 4
 Close the client socket  # 5
 ```
 
-1. This is output by main.
-2. First iteration of the while loop in handle_queries.
-3. Second iteration of the while loop.
-4. The user hit CTRL-C; the serverreceives a control character and closesthe session.
-5. The client socket is closed but the server is still running, ready to service another client.
+1. This is output by main.  
+    main的输出。
+2. First iteration of the while loop in handle_queries.  
+    在handle_queriers中的while循环的第一次迭代。
+3. Second iteration of the while loop.  
+    while循环的第二次迭代。
+4. The user hit CTRL-C; the server receives a control character and closes the session.  
+    用户按下了CTRL-C；服务接收到控制符并关闭该会话。
+5. The client socket is closed but the server is still running, ready to service another client.  
+    客户端socket关闭，但服务仍在运行准备为其他客户端提供服务。
 
 Note how main almost immediately displays the Serving on... message and blocks in the loop.run_forever() call. At that point, control flows into the event loop and stays there, occasionally coming back to the handle_queries coroutine, which yields control back to the event loop whenever it needs to wait for the network as it sends or receives data. While the event loop is alive, a new instance of the handle_queries coroutine will be started for each client that connects to the server. In this way, multiple clients can be handled concurrently by this simple server. This continues until a KeyboardInterrupt occurs or the process is killed by the OS.  
+    注意main是如何几乎立刻显示了Serving on...信息和loop.run_forever()调用中的块。此时，控制流进入事件循环并停留在这，偶尔返回至handle_queries协程，当他需要等待网络发送或接受数据时，将控制权交还给事件循环。当事件循环活动时，
 
 The tcp_charfinder.py code leverages the high-level asyncio Streams API that provides a ready-to-use server so you only need to implement a handler function, which can be a plain callback or a coroutine. There is also a lower-level Transports and Protocols API, inspired by the transport and protocols abstractions in the Twisted framework.  
 
