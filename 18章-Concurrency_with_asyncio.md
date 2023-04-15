@@ -1300,10 +1300,120 @@ Close the client socket  # 5
     客户端socket关闭，但服务仍在运行准备为其他客户端提供服务。
 
 Note how main almost immediately displays the Serving on... message and blocks in the loop.run_forever() call. At that point, control flows into the event loop and stays there, occasionally coming back to the handle_queries coroutine, which yields control back to the event loop whenever it needs to wait for the network as it sends or receives data. While the event loop is alive, a new instance of the handle_queries coroutine will be started for each client that connects to the server. In this way, multiple clients can be handled concurrently by this simple server. This continues until a KeyboardInterrupt occurs or the process is killed by the OS.  
-    注意main是如何几乎立刻显示了Serving on...信息和loop.run_forever()调用中的块。此时，控制流进入事件循环并停留在这，偶尔返回至handle_queries协程，当他需要等待网络发送或接受数据时，将控制权交还给事件循环。当事件循环活动时，
+    注意main是如何几乎立刻显示了Serving on...信息和loop.run_forever()调用中的块。此时，控制流进入事件循环并停留在这，偶尔返回至handle_queries协程，当他需要等待网络发送或接受数据时，将控制权交还给事件循环。当事件循环活动时，将为每个连接server的client启动handle_queries协程的新实例。就这样，多个客户端可以被这个简单服务并行处理。该协程持续到KeyboardInterrup发生或OS关闭进程。
 
 The tcp_charfinder.py code leverages the high-level asyncio Streams API that provides a ready-to-use server so you only need to implement a handler function, which can be a plain callback or a coroutine. There is also a lower-level Transports and Protocols API, inspired by the transport and protocols abstractions in the Twisted framework.  
+    tcp_charfinder.py代码利用了高级asyncio Stream API，这提供了一个即用型服务，你仅需要实现一个控制器函数，这可以是一个普通的回调或协程。还有一个低级的Transports和Protocols API，灵感来自于Twisted框架中的传输与协议的抽象。
 
 Refer to the asyncio Transports and Protocols documentation for more information, including a TCP echo server implemented with that lower-level API.  
+    参考asyncio Transports与Protocols的演示来了解更多，包括使用那个低级API实现的TCP回声服务。
 
 The next section presents an HTTP character finder server.  
+    下一节介绍HTTP字符查找服务。
+
+### An aiohttp Web Server
+
+The aiohttp library we used for the asyncio flags examples also supports server-side HTTP, so that’s what I used to implement the http_charfinder.py script. Figure 18-3 shows the simple web interface of the server, displaying the result of a search for a “catface” emoji.  
+    我们用于asyncio flags示例的aiohttp库同样支持服务器端HTTP，所以我用他实现http_charfinder.py脚本。图示18-3展示了该服务简单的web接口，显示的是“catface” emoji的搜索结果。
+
+Figure 18-3. Browser window displaying search results for “cat face” on the http_charfinder.py server  
+    图示18-3. 浏览器窗口显示http_charfinder.py服务上“cat face”的搜索结果。
+
+    Some browsers are better than others at displaying Unicode. The screenshot in Figure 18-3 was captured with Firefox on OS X, and I got the same result with Safari. But up-to-date Chrome and Opera browsers on the same machine did not display emoji characters like the cat faces. Other search results (e.g., “chess”) looked fine, so it’s likely a font issue on Chrome and Opera on OSX.  
+    一些浏览器在显示Unicode方面更好。18-3的截图是抓捕的OS X上的Firefox，我在Safari上获取了相同的结果。但同一机器上的最新版的Chrome与Opera浏览器不能显示像猫脸的emoji字符。其他搜索结果（如chess）看起来很好，所以这像是OSX上的Chrome和Opera的字体问题。
+
+We’ll start by analyzing the most interesting part of http_charfinder.py: the bottom half where the event loop and the HTTP server is set up and torn down. See Example 18-17.  
+    我们通过分析http_charfinder.py最有趣的部分来开始：事件循环与HTTP服务设置和拆除的下半部分。来看示例18-17。
+
+Example 18-17. http_charfinder.py: the main and init functions
+
+```python
+@asyncio.coroutine
+def init(loop, address, port):  # 1
+    app = web.Application(loop=loop)  # 2
+    app.router.add_route('GET', '/', home)  # 3
+    handler = app.make_handler()  # 4
+    server = yield from loop.create_server(handler,
+                                           address, port)  # 5
+    
+    return server.sockets[0].getsockname()  # 6
+
+
+def main(address="127.0.0.1", port=8888):
+    port = int(port)
+    loop = asyncio.get_event_loop()
+    host = loop.run_until_complete(init(loop, address, port))  # 7
+    print('Serving on {}. Hit CTRL-C to stop.'.format(host))
+    try:
+        loop.run_forever()  # 8
+     except KeyboardInterrupt: # CTRL+C pressed
+        pass
+    print('Server shutting down.')
+    loop.close()  # 9
+
+
+if __name__ == '__main__':
+    main(*sys.argv[1:])
+```
+
+1. The init coroutine yields a server for the event loop to drive.
+2. The aiohttp.web.Application class represents a web application…
+3. …with routes mapping URL patterns to handler functions; here GET / is routed to the home function (see Example 18-18).
+4. The app.make_handler method returns an aiohttp.web.RequestHandler instance to handle HTTP requests according to the routes set up in the app object.
+5. create_server brings up the server, using handler as the protocol handler and binding it to address and port.
+6. Return the address and port of the first server socket.
+7. Run init to start the server and get its address and port.
+8. Run the event loop; main will block here while the event loop is in control.
+9. Close the event loop.
+
+As you get acquainted with the asyncio API, it’s interesting to contrast how the servers are set up in Example 18-17 and in the TCP example (Example 18-15) shown earlier.  
+In the earlier TCP example, the server was created and scheduled to run in the main function with these two lines:  
+    server_coro = asyncio.start_server(handle_queries, address, port,
+                                       loop=loop)
+    server = loop.run_until_complete(server_coro)
+
+In the HTTP example, the init function creates the server like this:
+    server = yield from loop.create_server(handler,
+                                           address, port)
+But init itself is a coroutine, and what makes it run is the main function, with this line:
+    host = loop.run_until_complete(init(loop, address, port))
+
+Both asyncio.start_server and loop.create_server are coroutines that return asyncio.Server objects. In order to start up a server and return a reference to it, each of these coroutines must be driven to completion. In the TCP example, that was done by calling loop.run_until_complete(server_coro), where server_coro was the result of asyncio.start_server. In the HTTP example, create_server is invoked on a yield_from expression inside the init coroutine, which is in turn driven by the main function when it calls loop.run_until_complete(init(...)).
+
+I mention this to emphasize this essential fact we’ve discussed before: a coroutine only does anything when driven, and to drive an asyncio.coroutine you either use yield from or pass it to one of several asyncio functions that take coroutine or future arguments, such as run_until_complete.  
+
+Example 18-18 shows the home function, which is configured to handle the / (root) URL in our HTTP server.
+
+Example 18-18. http_charfinder.py: the home function
+
+```python
+def home(request):  # 1
+    query = request.GET.get('query', '').strip()  # 2
+    print('Query: {!r}'.format(query))  # 3
+    if query:  # 4
+        descriptions = list(index.find_descriptions(query))
+        res = '\n'.join(ROW_TPL.format(**vars(descr))
+                        for descr in descriptions)
+        msg = index.status(query, len(descriptions))
+    else:
+        descriptions = []
+        res = ''
+        msg = 'Enter words describing characters.'
+ 
+    html = template.format(query=query, result=res,  # 5
+                           message=msg)
+    print('Sending {} results'.format(len(descriptions)))  # 6
+    return web.Response(content_type=CONTENT_TYPE, text=html)  # 7
+```
+
+1. A route handler receives an aiohttp.web.Request instance.
+2. Get the query string stripped of leading and trailing blanks.
+3. Log query to server console.
+4. If there was a query, bind res to HTML table rows rendered from result of the query to the index, and msg to a status message.
+5. Render the HTML page.
+6. Log response to server console.
+7. Build Response and return it.
+
+Note that home is not a coroutine, and does not need to be if there are no yield from expressions in it. The aiohttp documentation for the add_route method states that the handler “is converted to coroutine internally when it is a regular function.”  
+
+There is a downside to the simplicity of the home function in Example 18-18. The fact that it’s a plain function and not a coroutine is a symptom of a larger issue: the need to rethink how we code web applications to achieve high concurrency. Let’s consider this matter.
