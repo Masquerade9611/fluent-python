@@ -1325,9 +1325,11 @@ Figure 18-3. Browser window displaying search results for “cat face” on the 
 We’ll start by analyzing the most interesting part of http_charfinder.py: the bottom half where the event loop and the HTTP server is set up and torn down. See Example 18-17.  
     我们通过分析http_charfinder.py最有趣的部分来开始：事件循环与HTTP服务设置和拆除的下半部分。来看示例18-17。
 
-Example 18-17. http_charfinder.py: the main and init functions
+Example 18-17. http_charfinder.py: the main and init functions  
+    示例18-17. http_charfinder.py：main函数与init函数
 
 ```python
+
 @asyncio.coroutine
 def init(loop, address, port):  # 1
     app = web.Application(loop=loop)  # 2
@@ -1356,18 +1358,31 @@ if __name__ == '__main__':
     main(*sys.argv[1:])
 ```
 
-1. The init coroutine yields a server for the event loop to drive.
-2. The aiohttp.web.Application class represents a web application…
-3. …with routes mapping URL patterns to handler functions; here GET / is routed to the home function (see Example 18-18).
-4. The app.make_handler method returns an aiohttp.web.RequestHandler instance to handle HTTP requests according to the routes set up in the app object.
-5. create_server brings up the server, using handler as the protocol handler and binding it to address and port.
-6. Return the address and port of the first server socket.
-7. Run init to start the server and get its address and port.
-8. Run the event loop; main will block here while the event loop is in control.
-9. Close the event loop.
+1. The init coroutine yields a server for the event loop to drive.  
+    init协程产生一个服务为事件循环驱动。
+2. The aiohttp.web.Application class represents a web application…  
+    aiohttp.webApplication类代表一个web应用…
+3. …with routes mapping URL patterns to handler functions; here GET / is routed to the home function (see Example 18-18).  
+    …其具有将URL模式映射至控制函数的路由；这里的GET / 被路由至home函数（参考例18-18）。
+4. The app.make_handler method returns an aiohttp.web.RequestHandler instance to handle HTTP requests according to the routes set up in the app object.  
+    app.make_hanler方法返回了一个aiohttp.web.RequestHandler实例，用于根据app object中设置的路由处理HTTP请求。
+5. create_server brings up the server, using handler as the protocol handler and binding it to address and port.  
+    create_server启动服务，将handler用作协议处理器并绑定地址与端口。
+6. Return the address and port of the first server socket.  
+    返回首个服务socket的地址与端口。
+7. Run init to start the server and get its address and port.  
+    运行init以启动服务，并获取其地址和端口。
+8. Run the event loop; main will block here while the event loop is in control.  
+    运行事件循环；当事件循环处于控制状态时main将在这里阻塞。
+9. Close the event loop.  
+    关闭事件循环。
 
 As you get acquainted with the asyncio API, it’s interesting to contrast how the servers are set up in Example 18-17 and in the TCP example (Example 18-15) shown earlier.  
+    当你开始熟悉asyncio API时，对比示例18-17和前面的TCP示例（18-15）中服务的设置方式是很有趣的。
+
 In the earlier TCP example, the server was created and scheduled to run in the main function with these two lines:  
+    在之前的TCP示例汇总，服务被创建并定于在main函数的这个这两行运行：
+
     server_coro = asyncio.start_server(handle_queries, address, port,
                                        loop=loop)
     server = loop.run_until_complete(server_coro)
