@@ -1387,15 +1387,21 @@ In the earlier TCP example, the server was created and scheduled to run in the m
                                        loop=loop)
     server = loop.run_until_complete(server_coro)
 
-In the HTTP example, the init function creates the server like this:
+In the HTTP example, the init function creates the server like this:  
+    在HTTP示例中，init函数创建服务如下：
+
     server = yield from loop.create_server(handler,
                                            address, port)
-But init itself is a coroutine, and what makes it run is the main function, with this line:
+But init itself is a coroutine, and what makes it run is the main function, with this line:  
+    但init自身是个协程，但让他运行起来的是main函数，用下面这行：
+
     host = loop.run_until_complete(init(loop, address, port))
 
-Both asyncio.start_server and loop.create_server are coroutines that return asyncio.Server objects. In order to start up a server and return a reference to it, each of these coroutines must be driven to completion. In the TCP example, that was done by calling loop.run_until_complete(server_coro), where server_coro was the result of asyncio.start_server. In the HTTP example, create_server is invoked on a yield_from expression inside the init coroutine, which is in turn driven by the main function when it calls loop.run_until_complete(init(...)).
+Both asyncio.start_server and loop.create_server are coroutines that return asyncio.Server objects. In order to start up a server and return a reference to it, each of these coroutines must be driven to completion. In the TCP example, that was done by calling loop.run_until_complete(server_coro), where server_coro was the result of asyncio.start_server. In the HTTP example, create_server is invoked on a yield_from expression inside the init coroutine, which is in turn driven by the main function when it calls loop.run_until_complete(init(...)).  
+    asyncio.start_server与loop.create_server都是协程，他们都返回asyncio.Server对象。为了启动服务并返回对他的引用，这些协程的每一个必须被完成。在TCP示例中，是通过调用loop.run_until_complete(server_coro)完成的，这里的server_coro是asyncio.start的结果。在HTTP示例中，create_server被init协程中的yield from表达式调用，当他调用loop.run_until_complete(init(...))时，他又由main函数驱动。
 
-I mention this to emphasize this essential fact we’ve discussed before: a coroutine only does anything when driven, and to drive an asyncio.coroutine you either use yield from or pass it to one of several asyncio functions that take coroutine or future arguments, such as run_until_complete.  
+I mention this to emphasize this essential fact we've discussed before: a coroutine only does anything when driven, and to drive an asyncio.coroutine you either use yield from or pass it to one of several asyncio functions that take coroutine or future arguments, such as run_until_complete.  
+    我提到这个是为了强调我们之前讨论的基本事实：协程只能在被驱动的时候做任何事情，
 
 Example 18-18 shows the home function, which is configured to handle the / (root) URL in our HTTP server.
 
