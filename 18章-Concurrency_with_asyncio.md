@@ -1401,9 +1401,10 @@ Both asyncio.start_server and loop.create_server are coroutines that return asyn
     asyncio.start_server与loop.create_server都是协程，他们都返回asyncio.Server对象。为了启动服务并返回对他的引用，这些协程的每一个必须被完成。在TCP示例中，是通过调用loop.run_until_complete(server_coro)完成的，这里的server_coro是asyncio.start的结果。在HTTP示例中，create_server被init协程中的yield from表达式调用，当他调用loop.run_until_complete(init(...))时，他又由main函数驱动。
 
 I mention this to emphasize this essential fact we've discussed before: a coroutine only does anything when driven, and to drive an asyncio.coroutine you either use yield from or pass it to one of several asyncio functions that take coroutine or future arguments, such as run_until_complete.  
-    我提到这个是为了强调我们之前讨论的基本事实：协程只能在被驱动的时候做任何事情，
+    我提到这个是为了强调我们之前讨论的基本事实：协程只能在被驱动的时候做任何事情，为了驱动asyncio.coroutine，要么使用yield from，要么将他传入各种接收协程或future参数的asyncio方法中的某一个，像是run_until_complete。
 
-Example 18-18 shows the home function, which is configured to handle the / (root) URL in our HTTP server.
+Example 18-18 shows the home function, which is configured to handle the / (root) URL in our HTTP server.  
+    例18-18展示了home方法，他被配置为去处理HTTP服务中的 / (root) URL。
 
 Example 18-18. http_charfinder.py: the home function
 
@@ -1427,14 +1428,23 @@ def home(request):  # 1
     return web.Response(content_type=CONTENT_TYPE, text=html)  # 7
 ```
 
-1. A route handler receives an aiohttp.web.Request instance.
-2. Get the query string stripped of leading and trailing blanks.
-3. Log query to server console.
-4. If there was a query, bind res to HTML table rows rendered from result of the query to the index, and msg to a status message.
-5. Render the HTML page.
-6. Log response to server console.
-7. Build Response and return it.
+1. A route handler receives an aiohttp.web.Request instance.  
+    接收aiohttp.web.Request实例的路由处理器。
+2. Get the query string stripped of leading and trailing blanks.  
+    获取去掉首尾空格的查询字符串。
+3. Log query to server console.  
+    将查询记录至服务端控制台。
+4. If there was a query, bind res to HTML table rows rendered from result of the query to the index, and msg to a status message.  
+    如果有查询，将返回值绑定至从查询结果呈现到索引的HTML table行，并将msg绑定至状态消息。
+5. Render the HTML page. 
+    渲染HTML页面。
+6. Log response to server console.  
+    将相应记录至服务控制台。
+7. Build Response and return it.  
+    建立相应并返回出去。
 
 Note that home is not a coroutine, and does not need to be if there are no yield from expressions in it. The aiohttp documentation for the add_route method states that the handler “is converted to coroutine internally when it is a regular function.”  
+    注意，home不是协程，如果其中没有yield from表达式就不需要是协程。add_route方法的aiohttp文档将hander陈述为“当他是一个常规函数时，在内部被转化为协程。”
 
-There is a downside to the simplicity of the home function in Example 18-18. The fact that it’s a plain function and not a coroutine is a symptom of a larger issue: the need to rethink how we code web applications to achieve high concurrency. Let’s consider this matter.
+There is a downside to the simplicity of the home function in Example 18-18. The fact that it’s a plain function and not a coroutine is a symptom of a larger issue: the need to rethink how we code web applications to achieve high concurrency. Let’s consider this matter.  
+    示例18-18中的home函数的简单性也有不利的一面。事实上他就是一个普通函数，而不是协程，这是一个更大问题的征兆：需要重新考虑我们怎样编写应对高并发的web应用。让我们考虑下这个问题。
