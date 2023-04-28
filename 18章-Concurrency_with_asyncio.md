@@ -1448,3 +1448,31 @@ Note that home is not a coroutine, and does not need to be if there are no yield
 
 There is a downside to the simplicity of the home function in Example 18-18. The fact that it’s a plain function and not a coroutine is a symptom of a larger issue: the need to rethink how we code web applications to achieve high concurrency. Let’s consider this matter.  
     示例18-18中的home函数的简单性也有不利的一面。事实上他就是一个普通函数，而不是协程，这是一个更大问题的征兆：需要重新考虑我们怎样编写应对高并发的web应用。让我们考虑下这个问题。
+
+### Smarter Clients for Better Concurrency  用于更好并发的智能客户端
+
+The home function in Example 18-18 looks very much like a view function in Django or Flask. There is nothing asynchronous about its implementation: it gets a request, fetches data from a database, and builds a response by rendering a full HTML page. In this example, the “database” is the UnicodeNameIndex object, which is in memory. But accessing a real database should be done asynchronously, otherwise you’re blocking the event loop while waiting for database results. For example, the aiopg package provides an asynchronous PostgreSQL driver compatible with asyncio; it lets you use yield from to send queries and fetch results, so your view function can behave as a proper coroutine.  
+    例18-18中的home函数看起来很像Django或Flask中的view函数。他的实现没有涉及到异步：获取到一个请求，从数据库中取数据，然后通过呈现完整的HTML页来构建一个响应。在这个示例中，“数据库”是内存中的UnicodeNameIndex对象。但访问真实数据库应该是异步完成的，否则在等待数据库结果的过程中会阻塞事件循环。举个例子，aiopg包提供一个兼容asyncio的异步PostgreSQL驱动；这会让你使用yield from来发送请求与获取结果，所以你的view函数可以作为一个像样的协程运行。
+
+Besides avoiding blocking calls, highly concurrent systems must split large chunks of work into smaller pieces to stay responsive. The http_charfinder.py server illustrates this point: if you search for “cjk” you’ll get back 75,821 Chinese, Japanese, and Korean ideographs.[9] In this case, the home function will return a 5.3 MB HTML document, featuring a table with 75,821 rows.  
+    除了避免阻塞调用，高并发系统必须将大量的工作分割为小片段以保持响应。http_charfinder.py服务说明了这点：如果你查询“cjk”，你会获取到75,821条汉语，日语和汉语的表意文字。[9]这种情况下，home函数将返回一个5.3MB的HTML文件，其中具有一个75,821行的表格。
+
+On my machine, it takes 2s to fetch the response to the “cjk” query, using the curl command-line HTTP client from a local http_charfinder.py server. A browser takes even longer to actually layout the page with such a huge table. Of course, most queries return much smaller responses: a query for “braille” returns 256 rows in a 19 KB page and takes 0.017s on my machine. But if the server spends 2s serving a single “cjk” query, all the other clients will be waiting for at least 2s, and that is not acceptable.  
+    在我们的机器中，使用来自本地http_charfinder.py服务的curl命令行HTTP客户端，获取“cjk”查询的响应会花费2秒。像这么大的表格，浏览器进行实际布局该页面会花费更长时间。当然，大部分查询返回更小的响应结果：在我们的机器上，“braille”的查询返回256行，大小19KB的页面，花费0.017秒。但如果服务花费2秒来处理单个的“cjk”查询，所有其他的客户端将至少等2秒，这是不可接受的。
+
+The way to avoid the long response problem is to implement pagination: return results with at most, say, 200 rows, and have the user click or scroll the page to fetch more. If you look up the charfinder.py module in the Fluent Python code repository, you’ll see that the UnicodeNameIndex.find_descriptions method takes optional start and stop arguments: they are offsets to support pagination. So you could return the first 200 results, then use AJAX or even WebSockets to send the next batch when—and if—the user wants to see it.  
+    避免长时间响应问题的方式是实现分页：返回结果最多200行，用户点击或回滚页面以获取更多。如果查阅了Fluent Python代码库中charfinder.py模块，你将看到UnicodeNameIndex.find_descriptions方法获取可选参数start与stop：用于支持分页的偏移量。所以你可以返回前200行结果，然后在用户想要看的时候，使用AJAX或甚至WebSockets来发送下一批结果。
+
+Most of the necessary coding for sending results in batches would be on the browser. This explains why Google and all large-scale Internet properties rely on lots of client-side coding to build their services: smart asynchronous clients make better use of server resources.  
+    用于批量发送结果的大多数必要编码都在浏览器上进行。这就解释了为什么Google和所有大型互联网企业都依赖大量客户端编码来构建他的服务：智能异步客户端可以更好地利用服务器资源。
+
+Although smart clients can help even old-style Django applications, to really serve them well we need frameworks that support asynchronous programming all the way: from the handling of HTTP requests and responses, to the database access. This is especially true if you want to implement real-time services such as games and media streaming with WebSockets.[10]  
+    虽然智能客户端可以帮助甚至是古老风格的Django应用，但为了更好提供服务，我们需要始终支持异步编程的框架：从处理HTTP请求与响应，到数据库访问。这尤其符合于你想要实现实时服务，像是使用WebSockets的游戏与媒体流。[10]
+
+Enhancing http_charfinder.py to support progressive download is left as an exercise to the reader. Bonus points if you implement “infinite scroll,” like Twitter does. With this challenge, I wrap up our coverage of concurrent programming with asyncio.  
+    升级http_charfinder.py以支持渐进式下载，这留给读者作为联系。如果你实现了像推特那样“无限滚动”，则可以获得加分。面对这个挑战，我总结了我们对使用asyncio进行并发编程的介绍。
+
+[9]. That’s what CJK stands for: the ever-expanding set of Chinese, Japanese, and Korean characters. Future versions of Python may support more CJK ideographs than Python 3.4 does.  
+    这就是CJK的意思：不断扩大的中文、日文和韩文字符集。未来版本的Python可能会比Python3.4支持更多CJK表意文字。
+[10]. I have more to say about this trend in “Soapbox” on page 580.  
+    关于这个趋势，我在580页的“Soapbox”有更多的说明。
