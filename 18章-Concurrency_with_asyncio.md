@@ -1476,3 +1476,59 @@ Enhancing http_charfinder.py to support progressive download is left as an exerc
     这就是CJK的意思：不断扩大的中文、日文和韩文字符集。未来版本的Python可能会比Python3.4支持更多CJK表意文字。
 [10]. I have more to say about this trend in “Soapbox” on page 580.  
     关于这个趋势，我在580页的“Soapbox”有更多的说明。
+
+## Chapter Summary 本章总结
+
+This chapter introduced a whole new way of coding concurrency in Python, leveraging yield from, coroutines, futures, and the asyncio event loop. The first simple examples, the spinner scripts, were designed to demonstrate a side-by-side comparison of the threading and the asyncio approaches to concurrency.  
+    这一章介绍了Python并发编程的一种全新的方式，利用了yield from，协程，futures与asyncio事件循环。第一个简单的示例，spinner脚本，旨在演示出并排比较线程与asyncio方法的并发性。
+
+We then discussed the specifics of asyncio.Future, focusing on its support for yield from, and its relationship with coroutines and asyncio.Task. Next, we analyzed the asyncio-based flag download script.  
+    然后我们讨论了asyncio.Future的具体细节，着重于他对于yield from的支持，以及他和协程与asyncio.Task之间的关系。接下来，我们基于flag下载脚本分析了asyncio。
+
+We then reflected on Ryan Dahl’s numbers for I/O latency and the effect of blocking calls. To keep a program alive despite the inevitable blocking functions, there are two solutions: using threads or asynchronous calls—the latter being implemented as callbacks or coroutines.  
+    之后我们反思了Ryan Dahl的I/O延迟数据和阻塞调用的影响。尽管存在不可避免的阻塞函数，但为了保持程序的活力，有两种解决方法：使用线程或异步调用——后者实现为回调或协程。
+
+In practice, asynchronous libraries depend on lower-level threads to work—down to kernel-level threads—but the user of the library doesn’t create threads and doesn’t need to be aware of their use in the infrastructure. At the application level, we just make sure none of our code is blocking, and the event loop takes care of the concurrency under the hood. Avoiding the overhead of user-level threads is the main reason why asynchronous systems can manage more concurrent connections than multithreaded systems.  
+    实际上，异步库依赖于较低级的线程来进行工作——一直到内核级别的线程——但是库的使用者不创建线程，同时也不需要知道底层架构中的使用。在应用级别，我们只确保我们的代码没有阻塞，并且事件循环关注底层的并发。避免用户层线程的开销是异步系统可以比多线程系统管理更多并发连接的主要原因。
+
+Resuming the flag downloading examples, adding a progress bar and proper error handling required significant refactoring, particularly with the switch from asyncio.wait to asyncio.as_completed, which forced us to move most of the functionality of download_many to a new downloader_coro coroutine, so we could use yield from to get the results from the futures produced by asyncio.as_completed, one by one.  
+    恢复flag下载示例，追加一个进度条和合适的error管理需要大量重构，特别是从asyncio.wait切换到asyncio.as_completed，这迫使我们将download_many的大部分功能移至新的downloader_coro协程，所以我们才能使用yield from一个接一个地获取futures（由asyncio.as_completed）的结果。
+
+We then saw how to delegate blocking jobs—such as saving a file—to a thread pool using the loop.run_in_executor method.  
+    然后我们看到了如何通过使用loop.run_in_execuore方法，将阻塞任务（如保存文件）委派给线程池。
+
+This was followed by a discussion of how coroutines solve the main problems of callbacks: loss of context when carrying out multistep asynchronous tasks, and lack of a proper context for error handling.  
+    随后讨论了协程如何解决回调的主要问题：当执行多步骤异步任务时的上下文丢失，以及缺乏用于error处理的适当上下文。
+
+The next example—fetching the country names along with the flag images—demonstrated how the combination of coroutines and yield from avoids the so-called callback hell. A multistep procedure making asynchronous calls with yield from looks like simple sequential code, if you pay no attention to the yield from keywords.  
+    下一个示例——通过flag图片获取国家名称——演示了协程与yield from的结合是如何避免所谓的“回调地狱”的。如果你没有注意到yield from 关键词，通过yield from来构建异步调用的多步骤程序看起来就像是简单的顺序编程。
+
+The final examples in the chapter were asyncio TCP and HTTP servers that allow searching for Unicode characters by name. Analysis of the HTTP server ended with a discussion on the importance of client-side JavaScript to support higher concurrency on the server side, by enabling the client to make smaller requests on demand, instead of downloading large HTML pages.  
+    本章最后的例子是可以通过名称搜索Unciode字符的asyncio TCP与HTTP服务。HTTP服务的分析以client端JavaScript支持服务端更高并发的重要性 的讨论结束，通过使client可以根据需求发送更小的请求，而不是直接下载大型HTML页面。
+
+## Further Reading
+Nick Coghlan, a Python core developer, made the following comment on the draft of PEP-3156 — Asynchronous IO Support Rebooted: the “asyncio” Module in January 2013:  
+
+    Somewhere early in the PEP, there may need to be a concise description of the two APIs for waiting for an asynchronous Future:
+        1. f.add_done_callback(…)  
+        2. yield from f in a coroutine (resumes the coroutine when the future completes, with either the result or exception as appropriate)  
+
+    At the moment, these are buried in amongst much larger APIs, yet they’re key to understanding the way everything above the core event loop layer interacts.[11]  
+
+Guido van Rossum, the author of PEP-3156, did not heed Coghlan’s advice. Starting with PEP-3156, the asyncio documentation is very detailed but not user friendly. The nine .rst files that make up the asyncio package docs total 128 KB—that’s roughly 71 pages. In the standard library, only the “Built-in Types” chapter is bigger, and it covers the API for the numeric types, sequence types, generators, mappings, sets, bool, context managers, etc.  
+
+Most pages in the asyncio manual focus on concepts and the API. There are useful diagrams and examples scattered all over it, but one section that is very practical is “18.5.11. Develop with asyncio,” which presents essential usage patterns. The asyncio docs need more content explaining how asyncio should be used.  
+
+Because it’s very new, asyncio lacks coverage in print. Jan Palach’s Parallel Programming with Python (Packt, 2014) is the only book I found that has a chapter about asyncio, but it’s a short chapter.  
+
+There are, however, excellent presentations about asyncio. The best I found is Brett Slatkin’s “Fan-In and Fan-Out: The Crucial Components of Concurrency,” subtitled “Why do we need Tulip? (a.k.a., PEP 3156—asyncio),” which he presented at PyCon 2014 in Montréal (video). In 30 minutes, Slatkin shows a simple web crawler example, highlighting how asyncio is intended to be used. Guido van Rossum is in the audience and mentions that he also wrote a web crawler as a motivating example for asyncio; Guido’s code does not depend on aiohttp—it uses only the standard library. Slatkin also wrote the insightful post “Python’s asyncio Is for Composition, Not Raw Performance.”  
+
+[11]. Comment on PEP-3156 in a Jan. 20, 2013 message to the python-ideas list.  
+
+Other must-see asyncio talks are by Guido van Rossum himself: the PyCon US 2013 keynote, and talks he gave at LinkedIn and Twitter University. Also recommended are Saúl Ibarra Corretgé’s “A Deep Dive into PEP-3156 and the New asyncio Module” (slides, video).
+
+Dino Viehland showed how asyncio can be integrated with the Tkinter event loop in his “Using futures for async GUI programming in Python 3.3” talk at PyCon US 2013. Viehland shows how easy it is to implement the essential parts of the asyncio.AbstractEventLoop interface on top of another event loop. His code was written with Tulip, prior to the addition of asyncio to the standard library; I adapted it to work with the Python 3.4 release of asyncio. My updated refactoring is on GitHub.  
+
+Victor Stinner—an asyncio core contributor and author of the Trollius backport—regularly updates a list of relevant links: The new Python asyncio module aka “tulip”. Other collections of asyncio resources are Asyncio.org and aio-libs on Github, where you’ll find asynchronous drivers for PostgreSQL, MySQL, and several NoSQL databases. I haven’t tested these drivers, but the projects seem very active as I write this.  
+
+Web services are going to be an important use case for asyncio. Your code will likely depend on the aiohttp library led by Andrew Svetlov. You’ll also want to set up an environment to test your error handling code, and the Vaurien “chaos TCP proxy” designed by Alexis Métaireau and Tarek Ziadé is invaluable for that. Vaurien was created for the Mozilla Services project and lets you introduce delays and random errors into the TCP traffic between your program and backend servers such as databases and web services providers.
