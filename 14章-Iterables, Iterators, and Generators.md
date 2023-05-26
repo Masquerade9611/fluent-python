@@ -20,35 +20,55 @@ Python does not have macros like Lisp (Paul Graham’s favorite language), so ab
 Python 3 uses generators in many places. Even the range() built-in now returns a generator-like object instead of full-blown lists like before. If you must build a list from range, you have to be explicit (e.g., list(range(100))).  
     Python3在许多地方都使用了生成器。甚至内建的range()返回一个生成器——类对象，而不是像之前的完整的列表。如果你必须从range建立一个list，你必须明确注明（如 list(range(100))）。
 
-Every collection in Python is iterable, and iterators are used internally to support:
+Every collection in Python is iterable, and iterators are used internally to support:  
+    Python中的每个集合都是可迭代的，迭代器在内部用于支持：
 
-- for loops
-- Collection types construction and extension
-- Looping over text files line by line
-- List, dict, and set comprehensions
-- Tuple unpacking
-- Unpacking actual parameters with * in function calls
+- for loops  
+    for循环
+- Collection types construction and extension  
+    集合类型的构建与扩展
+- Looping over text files line by line  
+    逐行遍历文本文件  
+- List, dict, and set comprehensions  
+    列表，字典与集合理解
+- Tuple unpacking  
+    元组解包
+- Unpacking actual parameters with \* in function calls  
+    在函数调用中通过 \* 解包实际参数
 
-This chapter covers the following topics:
+This chapter covers the following topics:  
+    本章涵盖如下主题：
 
-- How the iter(…) built-in function is used internally to handle iterable objects
-- How to implement the classic Iterator pattern in Python
-- How a generator function works in detail, with line-by-line descriptions
-- How the classic Iterator can be replaced by a generator function or generator expression
-- Leveraging the general-purpose generator functions in the standard library
-- Using the new yield from statement to combine generators
-- A case study: using generator functions in a database conversion utility designed to work with large datasets
-- Why generators and coroutines look alike but are actually very different and should not be mixed
+- How the iter(…) built-in function is used internally to handle iterable objects  
+    内建函数iter(…)是如何在内部被用于处理可迭代对象的
+- How to implement the classic Iterator pattern in Python  
+    如何在Python中实现经典Iterator模式  
+- How a generator function works in detail, with line-by-line descriptions  
+    生成器函数如何工作，逐行描述  
+- How the classic Iterator can be replaced by a generator function or generator expression  
+    经典Iterator如何被生成器函数或表达式替代  
+- Leveraging the general-purpose generator functions in the standard library  
+    利用标准库中的通用生成器函数  
+- Using the new yield from statement to combine generators  
+    使用新的yield from声明结合生成器
+- A case study: using generator functions in a database conversion utility designed to work with large datasets  
+    案例研究：在设计用于处理大型数据集的数据库转换实用程序中使用生成器函数  
+- Why generators and coroutines look alike but are actually very different and should not be mixed  
+    生成器与协程看起来一样，但实际非常不同且不能结合的原因
 
-We’ll get started studying how the iter(…) function makes sequences iterable.
+We’ll get started studying how the iter(…) function makes sequences iterable.  
+    我们将从iter()函数如何使序列可迭代开始学习。
 
-## Sentence Take #1: A Sequence of Words
+## Sentence Take #1: A Sequence of Words  句型#1：单词序列
 
 We’ll start our exploration of iterables by implementing a Sentence class: you give its constructor a string with some text, and then you can iterate word by word. The first version will implement the sequence protocol, and it’s iterable because all sequences are iterable, as we’ve seen before, but now we’ll see exactly why.  
+    我们通过实现一个Sentence类来开始我们对可迭代对象的探索：
 
 Example 14-1 shows a Sentence class that extracts words from a text by index.  
+    例14-1展示了Sentence类通过索引从文本中提取单词。
 
-Example 14-1. sentence.py: A Sentence as a sequence of words
+Example 14-1. sentence.py: A Sentence as a sequence of words  
+    例14-1. sentence.py：由单词序列
 
 ```python
 import re
@@ -72,7 +92,11 @@ class Sentence:
         return 'Sentence(%s)' % reprlib.repr(self.text)  # 4
 ```
 
-1. re.findall returns a list with all nonoverlapping matches of the regular expression, as a list of strings.
-2. self.words holds the result of .findall, so we simply return the word at the given index.
-3. To complete the sequence protocol, we implement __len__—but it is not needed to make an iterable object.
-4. reprlib.repr is a utility function to generate abbreviated string representations of data structures that can be very large.[3]
+1. re.findall returns a list with all nonoverlapping matches of the regular expression, as a list of strings.  
+    re.findall返回一个列表，包含该正则的所有非重叠匹配，作为字符串列表。
+2. self.words holds the result of .findall, so we simply return the word at the given index.  
+    self.words保存了.findall的结果，所以我们简单地用给定索引返回单词。
+3. To complete the sequence protocol, we implement __len__—but it is not needed to make an iterable object.  
+    为了完成序列的协议，我们实现了__len__，但这不是创建可迭代对象所必需的。
+4. reprlib.repr is a utility function to generate abbreviated string representations of data structures that can be very large.[3]  
+    reprlib.repr是一个实用的函数，用于生成可以特别大的数据结构的缩略字符串表示。
