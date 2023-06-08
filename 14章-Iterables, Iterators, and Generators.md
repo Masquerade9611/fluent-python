@@ -252,16 +252,22 @@ StopIteration signals that the iterator is exhausted. This exception is handled 
     StopIteration标志着迭代器已枯竭。该异常被for循环及其他迭代上下文（如list推导，元组解包）中进行了内部处理。
 
 The standard interface for an iterator has two methods:  
+    迭代器的标准接口有两个函数：
 __next__
-    Returns the next available item, raising StopIteration when there are no more items.
+    Returns the next available item, raising StopIteration when there are no more items.  
+    返回下一个可用项，没有项时抛出StopIteration。
 
 __iter__
-    Returns self; this allows iterators to be used where an iterable is expected, for example, in a for loop.
+    Returns self; this allows iterators to be used where an iterable is expected, for example, in a for loop.  
+    返回本身；这使得迭代器被用在需要可迭代对象的地方，；例如在for循环中。
 
-This is formalized in the collections.abc.Iterator ABC, which defines the __next__ abstract method, and subclasses Iterable—where the abstract __iter__ method is defined. See Figure 14-1.
+This is formalized in the collections.abc.Iterator ABC, which defines the __next__ abstract method, and subclasses Iterable—where the abstract __iter__ method is defined. See Figure 14-1.  
+    这在collections.abc.Iterator ABC中被形式化了，其定义了__next__抽象方法和Iterable的子类——其中定义了抽象__iter__方法。参加图示14-1。
 
 Figure 14-1. The Iterable and Iterator ABCs. Methods in italic are abstract. A concrete Iterable.iter should return a new Iterator instance. A concrete Iterator must implement next. The Iterator.iter method just returns the instance itself.  
+
 The Iterator ABC implements __iter__ by doing return self. This allows an iterator to be used wherever an iterable is required. The source code for abc.Iterator is in Example 14-3.  
+    Iterator ABC通过返回他本身实现了__iter__。这使得一个迭代器被用于需要可迭代对象的任何地方。例14-3是abc.Iterator的源码。
 
 Example 14-3. abc.Iterator class; extracted from Lib/_collections_abc.py  
 
