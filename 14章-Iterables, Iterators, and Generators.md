@@ -259,7 +259,7 @@ __next__
 
 __iter__
     Returns self; this allows iterators to be used where an iterable is expected, for example, in a for loop.  
-    返回本身；这使得迭代器被用在需要可迭代对象的地方，；例如在for循环中。
+    返回本身；这使得迭代器被用在需要可迭代对象的地方，例如在for循环中。
 
 This is formalized in the collections.abc.Iterator ABC, which defines the __next__ abstract method, and subclasses Iterable—where the abstract __iter__ method is defined. See Figure 14-1.  
     这在collections.abc.Iterator ABC中被形式化了，其定义了__next__抽象方法和Iterable的子类——其中定义了抽象__iter__方法。参加图示14-1。
@@ -270,6 +270,7 @@ The Iterator ABC implements __iter__ by doing return self. This allows an iterat
     Iterator ABC通过返回他本身实现了__iter__。这使得一个迭代器被用于需要可迭代对象的任何地方。例14-3是abc.Iterator的源码。
 
 Example 14-3. abc.Iterator class; extracted from Lib/_collections_abc.py  
+    例14-3. abc.Iterator类；摘自Lib/_collections_abc.py
 
 ```python
 class Iterator(Iterable):
@@ -291,46 +292,58 @@ class Iterator(Iterable):
 ```
 
     The Iterator ABC abstract method is it.__next__() in Python 3 and it.next() in Python 2. As usual, you should avoid calling special methods directly. Just use the next(it): this built-in function does the right thing in Python 2 and 3.  
+    Iterator ABC 抽象方法在Python3中是it.__next__()，在Python2中是it.next()。通常你应该避免直接调用魔术方法。只要使用next(it)：这种内建方法在Python2和3中都是正确的。
 
 The Lib/types.py module source code in Python 3.4 has a comment that says:
     # Iterators in Python aren't a matter of type but of protocol. A large
     # and changing number of builtin types implement *some* flavor of
     # iterator. Don't check the type! Use hasattr to check for both
     # "__iter__" and "__next__" attributes instead.
+    Python3.4中Lib/types.py模块源码有着这样的注释：
+        Python中的Iterator不是类型问题，而是协议问题。大量且不断变化的内置类型实现了某些风格的迭代器。不要检测类型，使用hasattr来检查“__iter__”和“__next__”属性。
 
 In fact, that’s exactly what the __subclasshook__ method of the abc.Iterator ABC does (see Example 14-3).  
+    事实上，这就是abc.Iterator ABC的__subclasshook__方法实际做的事情（见例14-3）。
 
     Taking into account the advice from Lib/types.py and the logic implemented in Lib/_collections_abc.py, the best way to check if an object x is an iterator is to call isinstance(x, abc.Iterator). Thanks to Iterator.__subclasshook__, this test works even if the class of x is not a real or virtual subclass of Iterator.  
+    考虑到Lib/types.py中的建议与Lib/_collections_abc.py中实现的逻辑，检查对象x是否为迭代器的最好方式是调用isinstance(x, acd.Iterator)。感谢Iterator.__subclasshoot__，即使x的类不是Iterator的真实或虚拟子类，该测试也有效。
 
 Back to our Sentence class from Example 14-1, you can clearly see how the iterator is built by iter(…) and consumed by next(…) using the Python console:  
+    回到我们例14-1的Sentence类，你可以使用Python控制台清楚看到iterator是如何通过iter(…)所构建并由next(…)所调用的。
 
 ```
->>> s3 = Sentence('Pig and Pepper') # 
->>> it = iter(s3) # 
+>>> s3 = Sentence('Pig and Pepper') # 1
+>>> it = iter(s3) # 2
 >>> it # doctest: +ELLIPSIS
 <iterator object at 0x...>
->>> next(it) # 
+>>> next(it) # 3
 'Pig'
 >>> next(it)
 'and'
 >>> next(it)
 'Pepper'
->>> next(it) # 
+>>> next(it) # 4
 Traceback (most recent call last):
     ...
 StopIteration
->>> list(it) # 
+>>> list(it) # 5
 []
->>> list(iter(s3)) # 
+>>> list(iter(s3)) # 6
 ['Pig', 'and', 'Pepper']
 ```
 
-1. Create a sentence s3 with three words.
-2. Obtain an iterator from s3.
-3. next(it) fetches the next word.
-4. There are no more words, so the iterator raises a StopIteration exception.
-5. Once exhausted, an iterator becomes useless.
-6. To go over the sentence again, a new iterator must be built.
+1. Create a sentence s3 with three words.  
+    创建一个三个单词的sentence s3。
+2. Obtain an iterator from s3.  
+    通过s3获取一个迭代器。
+3. next(it) fetches the next word.  
+    next(it)获取到下一个单词。
+4. There are no more words, so the iterator raises a StopIteration exception.  
+    没有更多的单词，所以迭代器抛出StopIteration异常。
+5. Once exhausted, an iterator becomes useless.  
+    一旦耗尽，迭代器就变为不可用。
+6. To go over the sentence again, a new iterator must be built.  
+    为了再过一遍句子，则必须创建新的迭代器。
 
 Because the only methods required of an iterator are __next__ and __iter__, there is no way to check whether there are remaining items, other than to call next() and catch StopInteration. Also, it’s not possible to “reset” an iterator. If you need to start over, you need to call iter(…) on the iterable that built the iterator in the first place. Calling iter(…) on the iterator itself won’t help, because—as mentioned—Iterator.__iter__ is implemented by returning self, so this will not reset a depleted iterator.  
 
