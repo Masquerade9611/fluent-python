@@ -346,9 +346,76 @@ StopIteration
     为了再过一遍句子，则必须创建新的迭代器。
 
 Because the only methods required of an iterator are __next__ and __iter__, there is no way to check whether there are remaining items, other than to call next() and catch StopInteration. Also, it’s not possible to “reset” an iterator. If you need to start over, you need to call iter(…) on the iterable that built the iterator in the first place. Calling iter(…) on the iterator itself won’t help, because—as mentioned—Iterator.__iter__ is implemented by returning self, so this will not reset a depleted iterator.  
+    因为迭代器必需的方法只有__next__和__iter__，没有办法检查是否有剩余的项，除非调用next()，然后捕获StopIteration。此外，“重置”一个迭代器也是不可能实现的。如果你想从头开始，则需要首先对构建迭代器的可迭代对象调用iter()。对迭代器本身调用iter()不起作用，因为——如上所述——Iterator.__iter__通过返回他本身来实现，所以这不会重置一个耗尽了的迭代器。
 
-To wrap up this section, here is a definition for iterator: 
+To wrap up this section, here is a definition for iterator:  
+    总结本节，这里是迭代器的定义：
 iterator
-    Any object that implements the __next__ no-argument method that returns the next item in a series or raises StopIteration when there are no more items. Python iterators also implement the __iter__ method so they are iterable as well.
+    Any object that implements the __next__ no-argument method that returns the next item in a series or raises StopIteration when there are no more items. Python iterators also implement the __iter__ method so they are iterable as well.  
+    实现了无参数的__next__方法的任何对象，该方法会返回一个序列中的下一项，或是没有更多项时抛出StopIteration。此外Python迭代器还实现了__iter__方法，所以他也是可迭代对象。
 
 This first version of Sentence was iterable thanks to the special treatment the iter(…) built-in gives to sequences. Now we’ll implement the standard iterable protocol.  
+    Sentence的首个版本是可迭代的，这归功于内置iter()对序列的特殊处理。现在我们将实现标准的可迭代对象协议。
+
+## Sentence Take #2: A Classic Iterator 经典迭代器
+
+The next Sentence class is built according to the classic Iterator design pattern following the blueprint in the GoF book. Note that this is not idiomatic Python, as the next refactorings will make very clear. But it serves to make explicit the relationship between the iterable collection and the iterator object.  
+    下一个Sentence类根据经典Iterator定义模式按照GoF书中的蓝图够贱的。注意这不是地道的Python，下面的重构将非常清晰地说明。但
+
+Example 14-4 shows an implementation of a Sentence that is iterable because it implements the __iter__ special method, which builds and returns a SentenceIterator. This is how the Iterator design pattern is described in the original Design Patterns book.  
+
+We are doing it this way here just to make clear the crucial distinction between an iterable and an iterator and how they are connected.  
+
+Example 14-4. sentence_iter.py: Sentence implemented using the Iterator pattern
+
+```python
+import re
+import reprlib
+
+RE_WORD = re.compile('\w+')
+
+class Sentence:
+    def __init__(self, text):
+        self.text = text
+        self.words = RE_WORD.findall(text)
+    
+    def __repr__(self):
+        return 'Sentence(%s)' % reprlib.repr(self.text)
+ 
+    def __iter__(self):  # 1
+        return SentenceIterator(self.words)  # 2
+
+
+class SentenceIterator:
+    def __init__(self, words):
+        self.words = words  # 3
+        self.index = 0  # 4
+    
+    def __next__(self):
+    try:
+        word = self.words[self.index]  # 5
+    except IndexError:
+        raise StopIteration()  # 6
+    self.index += 1  # 7
+    return word  # 8
+
+    def __iter__(self):  # 9
+        return self
+```
+
+1. The __iter__ method is the only addition to the previous Sentence implementation. This version has no __getitem__, to make it clear that the class is iterable because it implements __iter__.  
+
+2. __iter__ fulfills the iterable protocol by instantiating and returning an iterator.
+3. SentenceIterator holds a reference to the list of words.
+4. self.index is used to determine the next word to fetch.
+5. Get the word at self.index.
+6. If there is no word at self.index, raise StopIteration.
+7. Increment self.index.
+8. Return the word.
+9. Implement self.__iter__.  
+
+The code in Example 14-4 passes the tests in Example 14-2.  
+
+Note that implementing __iter__ in SentenceIterator is not actually needed for this example to work, but the it’s the right thing to do: iterators are supposed to implement both __next__ and __iter__, and doing so makes our iterator pass the issubclass(SentenceInterator, abc.Iterator) test. If we had subclassed SentenceIterator fromabc.Iterator, we’d inherit the concrete abc.Iterator.__iter__ method.  
+
+That is a lot of work (for us lazy Python programmers, anyway). Note how most code in SentenceIterator deals with managing the internal state of the iterator. Soon we’ll see how to make it shorter. But first, a brief detour to address an implementation shortcut that may be tempting, but is just wrong.
