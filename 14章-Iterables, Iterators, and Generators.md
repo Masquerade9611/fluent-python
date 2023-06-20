@@ -360,13 +360,16 @@ This first version of Sentence was iterable thanks to the special treatment the 
 ## Sentence Take #2: A Classic Iterator 经典迭代器
 
 The next Sentence class is built according to the classic Iterator design pattern following the blueprint in the GoF book. Note that this is not idiomatic Python, as the next refactorings will make very clear. But it serves to make explicit the relationship between the iterable collection and the iterator object.  
-    下一个Sentence类根据经典Iterator定义模式按照GoF书中的蓝图够贱的。注意这不是地道的Python，下面的重构将非常清晰地说明。但
+    下一个Sentence类根据经典Iterator定义模式按照GoF书中的蓝图构建的。注意这不是地道的Python，下面的重构将非常清晰地说明。但他用于明确可迭代对象集合与迭代器对象之间的关系。
 
 Example 14-4 shows an implementation of a Sentence that is iterable because it implements the __iter__ special method, which builds and returns a SentenceIterator. This is how the Iterator design pattern is described in the original Design Patterns book.  
+    例14-4展示了一种可迭代的Sentence的实现，因为他实现了__iter__方法，该方法构建并返回一个SentenceIterator。这就是原始的设计模式书中描述Iterator设计模式的方式。
 
 We are doing it this way here just to make clear the crucial distinction between an iterable and an iterator and how they are connected.  
+    我们这样做只是为了理清可迭代对象和迭代器直接最关键的差异，以及他们是如何连接的。
 
-Example 14-4. sentence_iter.py: Sentence implemented using the Iterator pattern
+Example 14-4. sentence_iter.py: Sentence implemented using the Iterator pattern  
+    例14-4. sentence_iter.py: 使用Iterator模式实现的Sentence
 
 ```python
 import re
@@ -397,6 +400,7 @@ class SentenceIterator:
     except IndexError:
         raise StopIteration()  # 6
     self.index += 1  # 7
+
     return word  # 8
 
     def __iter__(self):  # 9
@@ -404,18 +408,37 @@ class SentenceIterator:
 ```
 
 1. The __iter__ method is the only addition to the previous Sentence implementation. This version has no __getitem__, to make it clear that the class is iterable because it implements __iter__.  
+    __iter__是相比之前实现的Sentence唯一增加的方法。该版本没有__getitem__，以明确表明该类是可迭代对象，以为他实现了__iter__。
 
-2. __iter__ fulfills the iterable protocol by instantiating and returning an iterator.
-3. SentenceIterator holds a reference to the list of words.
-4. self.index is used to determine the next word to fetch.
-5. Get the word at self.index.
-6. If there is no word at self.index, raise StopIteration.
+2. __iter__ fulfills the iterable protocol by instantiating and returning an iterator.  
+    __iter__通过实例化并返回一个迭代器，满足了可迭代对象协议。
+
+3. SentenceIterator holds a reference to the list of words.  
+    SentenceIterator保存了words列表的引用。
+
+4. self.index is used to determine the next word to fetch.  
+    self.index用于决定下一个获取的word。
+
+5. Get the word at self.index.  
+    获取self.index位置的word。
+
+6. If there is no word at self.index, raise StopIteration.  
+    如果self.index位置没有word，抛出StopIeration。
+
 7. Increment self.index.
-8. Return the word.
+    增加self.index。
+
+8. Return the word.  
+    返回word。
+
 9. Implement self.__iter__.  
+    实现self.__iter__。
 
 The code in Example 14-4 passes the tests in Example 14-2.  
+    例14-4的代码通过了14-2的测试。
 
-Note that implementing __iter__ in SentenceIterator is not actually needed for this example to work, but the it’s the right thing to do: iterators are supposed to implement both __next__ and __iter__, and doing so makes our iterator pass the issubclass(SentenceInterator, abc.Iterator) test. If we had subclassed SentenceIterator fromabc.Iterator, we’d inherit the concrete abc.Iterator.__iter__ method.  
+Note that implementing __iter__ in SentenceIterator is not actually needed for this example to work, but the it’s the right thing to do: iterators are supposed to implement both __next__ and __iter__, and doing so makes our iterator pass the issubclass(SentenceIterator, abc.Iterator) test. If we had subclassed SentenceIterator from abc.Iterator, we’d inherit the concrete abc.Iterator.__iter__ method.  
+    注意，SentenceIterator中实现的__iter__实际上并不是该示例工作所需要的，而是因为正确而去做的：迭代器都应该实现__next__和__iter__，这样做可以使我们的迭代器可以通过issubclass(SentenceIterator, abc.Iterator)的测试。如果我们从abc.Iterator继承了SentenceIterator，我们将继承具体的abc.Iterator.__iter__方法。
 
-That is a lot of work (for us lazy Python programmers, anyway). Note how most code in SentenceIterator deals with managing the internal state of the iterator. Soon we’ll see how to make it shorter. But first, a brief detour to address an implementation shortcut that may be tempting, but is just wrong.
+That is a lot of work (for us lazy Python programmers, anyway). Note how most code in SentenceIterator deals with managing the internal state of the iterator. Soon we’ll see how to make it shorter. But first, a brief detour to address an implementation shortcut that may be tempting, but is just wrong.  
+    这是很繁重的工作（不论怎样，对我们的懒惰的Python程序员来说）。注意SentenceIterator中大部分的代码如何处理管理迭代器的内部状态。很快我们将看到怎样让他变得更短。但首先，绕个弯路来解决可能很诱人但却是错误的实施捷径。
