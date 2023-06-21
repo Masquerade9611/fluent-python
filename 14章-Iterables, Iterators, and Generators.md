@@ -442,3 +442,31 @@ Note that implementing __iter__ in SentenceIterator is not actually needed for t
 
 That is a lot of work (for us lazy Python programmers, anyway). Note how most code in SentenceIterator deals with managing the internal state of the iterator. Soon we’ll see how to make it shorter. But first, a brief detour to address an implementation shortcut that may be tempting, but is just wrong.  
     这是很繁重的工作（不论怎样，对我们的懒惰的Python程序员来说）。注意SentenceIterator中大部分的代码如何处理管理迭代器的内部状态。很快我们将看到怎样让他变得更短。但首先，绕个弯路来解决可能很诱人但却是错误的实施捷径。
+
+### Making Sentence an Iterator: Bad Idea 将Sentence改做迭代器：是个馊主意
+
+A common cause of errors in building iterables and iterators is to confuse the two. To be clear: iterables have an __iter__ method that instantiates a new iterator every time. Iterators implement a __next__ method that returns individual items, and an __iter__ method that returns self.  
+    在构建可迭代对象与迭代器时有误的通常原因是混淆了二者。要清楚：可迭代对象拥有__iter__方法，这可以随时实例化出一个新的迭代器。而迭代器实现了返回单个项的__next__方法，与返回他本身的__iter__方法。
+
+Therefore, iterators are also iterable, but iterables are not iterators. It may be tempting to implement __next__ in addition to __iter__ in the Sentence class, making each Sentence instance at the same time an iterable and iterator over itself. But this is a terrible idea. It’s also a common anti-pattern, according to Alex Martelli who has a lot of experience with Python code reviews.  
+    因此，迭代器也是可迭代对象，而可迭代对象不是迭代器。在Sentence类中除了__iter__还实现__next__这可能很诱人，这让每个Sentence实例同时成为可迭代对象和自身的迭代器。
+
+The “Applicability” section[4] of the Iterator design pattern in the GoF book says:  
+    GoF book中Iterator设计模式中“适用性”小节这样写到：
+
+    Use the Iterator pattern  
+        - to access an aggregate object’s contents without exposing its internal representation.  
+            访问聚合对象的内容而不暴露其内部表示。
+        - to support multiple traversals of aggregate objects.  
+            支持对局核对下的多次遍历。
+        - to provide a uniform interface for traversing different aggregate structures (that is, to support polymorphic iteration).  
+            为遍历不同聚合结构提供统一的接口（也就是说，支持多台迭代）。
+
+To “support multiple traversals” it must be possible to obtain multiple independent iterators from the same iterable instance, and each iterator must keep its own internal state, so a proper implementation of the pattern requires each call to iter(my_iterable) to create a new, independent, iterator. That is why we need the SentenceItera tor class in this example.  
+    为了“支持多次遍历”，
+
+[4]. Gamma et. al., Design Patterns: Elements of Reusable Object-Oriented Software, p. 259.
+
+    An iterable should never act as an iterator over itself. In other words, iterables must implement __iter__, but not __next__. On the other hand, for convenience, iterators should be iterable. An iterator’s __iter__ should just return self.
+
+Now that the classic Iterator pattern is properly demonstrated, we can get let it go. The next section presents a more idiomatic implementation of Sentence.
