@@ -460,13 +460,13 @@ The “Applicability” section[4] of the Iterator design pattern in the GoF boo
         - to support multiple traversals of aggregate objects.  
             支持对局核对下的多次遍历。
         - to provide a uniform interface for traversing different aggregate structures (that is, to support polymorphic iteration).  
-            为遍历不同聚合结构提供统一的接口（也就是说，支持多台迭代）。
+            为遍历不同聚合结构提供统一的接口（也就是说，支持多态迭代）。
 
-To “support multiple traversals” it must be possible to obtain multiple independent iterators from the same iterable instance, and each iterator must keep its own internal state, so a proper implementation of the pattern requires each call to iter(my_iterable) to create a new, independent, iterator. That is why we need the SentenceItera tor class in this example.  
-    为了“支持多次遍历”，
+To “support multiple traversals” it must be possible to obtain multiple independent iterators from the same iterable instance, and each iterator must keep its own internal state, so a proper implementation of the pattern requires each call to iter(my_iterable) to create a new, independent, iterator. That is why we need the SentenceIterator class in this example.  
+    为了“支持多重遍历”，必须能从同一个可迭代实例获取多个独立的迭代器，每个迭代器必须保持它自己内部的状态，所以该模式的正确实现需要每个都去调用iter(my_iterable)来创建一个新的，独立的迭代器。这就是我们在该示例中需要SentenceIterator类的原因。
 
-[4]. Gamma et. al., Design Patterns: Elements of Reusable Object-Oriented Software, p. 259.
+    An iterable should never act as an iterator over itself. In other words, iterables must implement __iter__, but not __next__. On the other hand, for convenience, iterators should be iterable. An iterator’s __iter__ should just return self.  
+        可迭代对象永远不应该充当其自身的迭代器。换句话说，可迭代对象必须实现__iter__，但不能实现__next__。另一方面，为了方便，迭代器应该是可迭代的。迭代器的__iter__应该只返回他本身。
 
-    An iterable should never act as an iterator over itself. In other words, iterables must implement __iter__, but not __next__. On the other hand, for convenience, iterators should be iterable. An iterator’s __iter__ should just return self.
-
-Now that the classic Iterator pattern is properly demonstrated, we can get let it go. The next section presents a more idiomatic implementation of Sentence.
+Now that the classic Iterator pattern is properly demonstrated, we can get let it go. The next section presents a more idiomatic implementation of Sentence.  
+    既然经典的迭代器模式已经得到了正确的演示，我们就可以开始下一段了。下一节会展示Sentence的更常用实现。
