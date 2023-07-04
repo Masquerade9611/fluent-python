@@ -470,3 +470,52 @@ To “support multiple traversals” it must be possible to obtain multiple inde
 
 Now that the classic Iterator pattern is properly demonstrated, we can get let it go. The next section presents a more idiomatic implementation of Sentence.  
     既然经典的迭代器模式已经得到了正确的演示，我们就可以开始下一段了。下一节会展示Sentence的更常用实现。
+
+## Sentence Take #3: A Generator Function 生成器函数
+
+A Pythonic implementation of the same functionality uses a generator function to replace the SequenceIterator class. A proper explanation of the generator function comes right after Example 14-5.  
+    相同功能的Python风格实现使用了生成器函数来替换SequenceIterator类。例14-5之后是对生成器函数的正确解释。
+
+Example 14-5. sentence_gen.py: Sentence implemented using a generator function  
+    例14-5 sentence_gen.py：使用生成器函数实现Sentence
+
+```python
+
+import re
+import reprlib
+
+RE_WORD = re.compile('\w+')
+
+class Sentence:
+    def __init__(self, text):
+        self.text = text
+        self.words = RE_WORD.findall(text)
+
+    def __repr__(self):
+        return 'Sentence(%s)' % reprlib.repr(self.text)
+
+    def __iter__(self):
+        for word in self.words:  # 1
+            yield word  # 2
+        return  # 3
+
+# done!  # 4
+```
+
+1. Iterate over self.word.  
+    遍历self.word。
+2. Yield the current word.  
+    产出当前的word。
+3. This return is not needed; the function can just “fall-through” and return automatically. Either way, a generator function doesn’t raise StopIteration: it simply exits when it’s done producing values.[5]  
+    该retuen不是必需的；这个函数可以“失败”并自动返回。无论哪种方法，生成器函数不能抛出StopIteration：当他完成生产value时就会退出。
+4. No need for a separate iterator class!  
+    不需要单独的迭代器类！
+
+Here again we have a different implementation of Sentence that passes the tests in Example 14-2.  
+    这里我们再次拥有了一个Sentence的不同实现，他通过了例14-2的测试。
+
+Back in the Sentence code in Example 14-4, __iter__ called the SentenceIterator constructor to build an iterator and return it. Now the iterator in Example 14-5 is in fact a generator object, built automatically when the __iter__ method is called, because __iter__ here is a generator function.  
+    回到14-4的Sentece代码，__iter__调用SentenceIterator构造函数来创建一个迭代器并返回。现在14-5的迭代器事实上是个生成器对象，当调用__iter__方法时自动构建，因为这里的__iter__是一个生成器方法。
+
+A full explanation of generator functions follows.  
+    下面是生成器函数的完整解释。
