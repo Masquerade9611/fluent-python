@@ -519,3 +519,100 @@ Back in the Sentence code in Example 14-4, __iter__ called the SentenceIterator 
 
 A full explanation of generator functions follows.  
     下面是生成器函数的完整解释。
+
+### How a Generator Function Works 生成器函数是如何工作的
+
+Any Python function that has the yield keyword in its body is a generator function: a function which, when called, returns a generator object. In other words, a generator function is a generator factory.  
+    任何函数体内存在yield关键词的Python函数都是生成器函数：一个函数，在被调用时返回一个生成器对象。换句话说，生成器函数是一个生成器工厂。
+
+    The only syntax distinguishing a plain function from a generator function is the fact that the latter has a yield keyword somewhere in its body. Some argued that a new keyword like gen should be used for generator functions instead of def, but Guido did not agree. His arguments are in PEP 255 — Simple Generators.[6]
+    区别普通函数与生成器函数唯一的语法就是后者函数体内的某处存在yield关键词。一些人认为对生成器函数应该使用像是gen的新关键词来取代def，但Guido并没有同意。他的论点在PEP 255中——Simple Generators。[6]
+
+Here is the simplest function useful to demonstrate the behavior of a generator:[7]  
+    这里是最简单的函数，可用于演示生成器的行为：[7]
+
+```
+>>> def gen_123(): # 1
+...     yield 1 # 2
+...     yield 2
+...     yield 3
+...
+>>> gen_123 # doctest: +ELLIPSIS
+<function gen_123 at 0x...> # 3
+>>> gen_123() # doctest: +ELLIPSIS
+<generator object gen_123 at 0x...> # 4
+>>> for i in gen_123(): # 5
+... print(i)
+1
+2
+3
+>>> g = gen_123() # 6
+>>> next(g) # 7
+1
+>>> next(g)
+2
+>>> next(g)
+3
+>>> next(g) # 8
+Traceback (most recent call last):
+ ...
+StopIteration
+
+```
+
+1. Any Python function that contains the yield keyword is a generator function.  
+    任何包含yield关键词的Python函数就是生成器函数。
+2. Usually the body of a generator function has loop, but not necessarily; here I just repeat yield three times.  
+    通常生成器函数中会包含循环，但不是必需的；这里我只是重复yield了三次。
+3. Looking closely, we see gen_123 is a function object.  
+    仔细观察，我们看到gen_123是一个函数对象。
+4. But when invoked, gen_123() returns a generator object.  
+    但当调用后，gen_123()返回了生成器对象。
+5. Generators are iterators that produce the values of the expressions passed to yield.  
+    生成器是迭代器，产出传递给yield的表达式的值。
+6. For closer inspection, we assign the generator object to g.  
+    为了更细致地检查，我能将生成器对象赋值给g。
+7. Because g is an iterator, calling next(g) fetches the next item produced by yield.  
+    因为g是迭代器，调用next(g)获取到由yield产出的下一项。
+8. When the body of the function completes, the generator object raises a StopIteration.  
+    当函数体完成，生成器对象抛出StopIteration。
+
+A generator function builds a generator object that wraps the body of the function. When we invoke next(…) on the generator object, execution advances to the next yield in the function body, and the next(…) call evaluates to the value yielded when the function body is suspended. Finally, when the function body returns, the enclosing generator object raises StopIteration, in accordance with the Iterator protocol.  
+    生成器函数构建一个包装函数体的生成器对象。当我们对生成器对象调用next()，执行前进至函数体内的下一个yield，并且next()调用的计算结果为函数体suspended是生成的值。
+
+    I find it helpful to be strict when talking about the results obtained from a generator: I say that a generator yields or produces values. But it’s confusing to say a generator “returns” values. Functions return values. Calling a generator function returns a generator. A generator yields or produces values. A generator doesn’t “return” values in the usual way: the return statement in the body of a generator function causes StopIteration to be raised by the generator object.[8]
+
+Example 14-6 makes the interaction between a for loop and the body of the function more explicit.
+Example 14-6. A generator function that prints messages when it runs
+
+```
+>>> def gen_AB(): # 1
+... print('start')
+... yield 'A' # 2
+... print('continue')
+... yield 'B' # 3
+... print('end.') # 4
+...
+>>> for c in gen_AB(): # 5
+... print('-->', c) # 6
+...
+start # 7
+--> A # 8
+continue # 9
+--> B # 10
+end. # 11
+>>> # 12
+```
+
+1. The generator function is defined like any function, but uses yield.  
+2. The first implicit call to next() in the for loop at will print 'start' and stop at the first yield, producing the value 'A'.  
+3. The second implicit call to next() in the for loop will print 'continue' and stop at the second yield, producing the value 'B'.  
+4. The third call to next()will print 'end.' and fall through the end of the function body, causing the generator object to raise StopIteration.  
+5. To iterate, the for machinery does the equivalent of g = iter(gen_AB()) to get a generator object, and then next(g) at each iteration.  
+6. The loop block prints --> and the value returned by next(g). But this output will be seen only after the output of the print calls inside the generator function.  
+7. The string 'start' appears as a result of print('start') in the generator function body.  
+8. yield 'A' in the generator function body produces the value A consumed by the for loop, which gets assigned to the c variable and results in the output --> A.  
+9. Iteration continues with a second call next(g), advancing the generatorfunction body from yield 'A' to yield 'B'. The text continue is output because of the second print in the generator function body.  
+10. yield 'B' produces the value B consumed by the for loop, which gets assigned to the c loop variable, so the loop prints --> B.  
+11. Iteration continues with a third call next(it), advancing to the end of the body of the function. The text end. appears in the output because of the third print in the generator function body.  
+12. When the generator function body runs to the end, the generator object raises StopIteration. The for loop machinery catches that exception, and the loop terminates cleanly.  
