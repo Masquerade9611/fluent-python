@@ -578,9 +578,11 @@ StopIteration
     当函数体完成，生成器对象抛出StopIteration。
 
 A generator function builds a generator object that wraps the body of the function. When we invoke next(…) on the generator object, execution advances to the next yield in the function body, and the next(…) call evaluates to the value yielded when the function body is suspended. Finally, when the function body returns, the enclosing generator object raises StopIteration, in accordance with the Iterator protocol.  
-    生成器函数构建一个包装函数体的生成器对象。当我们对生成器对象调用next()，执行前进至函数体内的下一个yield，并且next()调用的计算结果为函数体suspended是生成的值。
+    生成器函数构建一个包装函数体的生成器对象。当我们对生成器对象调用next()，执行前进至函数体内的下一个yield，并且next()调用的计算结果为函数体suspended时生成的值。最终当函数体返回，按照迭代器协议关闭的生成器对象抛出StopIteration。
 
-    I find it helpful to be strict when talking about the results obtained from a generator: I say that a generator yields or produces values. But it’s confusing to say a generator “returns” values. Functions return values. Calling a generator function returns a generator. A generator yields or produces values. A generator doesn’t “return” values in the usual way: the return statement in the body of a generator function causes StopIteration to be raised by the generator object.[8]
+    I find it helpful to be strict when talking about the results obtained from a generator: I say that a generator yields or produces values. But it’s confusing to say a generator “returns” values. Functions return values. Calling a generator function returns a generator. A generator yields or produces values. A generator doesn’t “return” values in the usual way: the return statement in the body of a generator function causes StopIteration to be raised by the generator object.[8]  
+    我发现在当谈论获取自生成器的结果时保持严格是有帮助的：我指的是生成器yield或产出的值。但说生成器“return”值是容易让人困惑的。
+    函数返回值。调用生成器函数返回生成器。一个生成器yield或生产值。生成器不会以通常的方式“return”值：返回生成器函数体中的状态，因为生成器对象抛出StopIteration。[8]
 
 Example 14-6 makes the interaction between a for loop and the body of the function more explicit.
 Example 14-6. A generator function that prints messages when it runs
