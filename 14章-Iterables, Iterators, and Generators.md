@@ -584,19 +584,22 @@ A generator function builds a generator object that wraps the body of the functi
     我发现在当谈论获取自生成器的结果时保持严格是有帮助的：我指的是生成器yield或产出的值。但说生成器“return”值是容易让人困惑的。
     函数返回值。调用生成器函数返回生成器。一个生成器yield或生产值。生成器不会以通常的方式“return”值：返回生成器函数体中的状态，因为生成器对象抛出StopIteration。[8]
 
-Example 14-6 makes the interaction between a for loop and the body of the function more explicit.
+Example 14-6 makes the interaction between a for loop and the body of the function more explicit.  
+    例14-6使得for循环与函数体之间的交互更加明确。
+
 Example 14-6. A generator function that prints messages when it runs
+    例14-6. 运行时打印信息的生成器函数
 
 ```
 >>> def gen_AB(): # 1
-... print('start')
-... yield 'A' # 2
-... print('continue')
-... yield 'B' # 3
-... print('end.') # 4
+...     print('start')
+...     yield 'A' # 2
+...     print('continue')
+...     yield 'B' # 3
+...     print('end.') # 4
 ...
 >>> for c in gen_AB(): # 5
-... print('-->', c) # 6
+...     print('-->', c) # 6
 ...
 start # 7
 --> A # 8
@@ -607,14 +610,37 @@ end. # 11
 ```
 
 1. The generator function is defined like any function, but uses yield.  
+    生成器函数像是任何函数一样定义，但使用yilde
+
 2. The first implicit call to next() in the for loop at will print 'start' and stop at the first yield, producing the value 'A'.  
+    for循环中对next()的第一次隐式调用将打印'start'然后停在第一个yield位置，产出值'A'。
+
 3. The second implicit call to next() in the for loop will print 'continue' and stop at the second yield, producing the value 'B'.  
+    第二次隐式调用将打印'continue'并停在第二个yield，产出值'B'。
+
 4. The third call to next()will print 'end.' and fall through the end of the function body, causing the generator object to raise StopIteration.  
+    第三次调用将打印'end.'并跌落至函数体的结尾，导致生成器对象抛出StopIteration。
+
 5. To iterate, the for machinery does the equivalent of g = iter(gen_AB()) to get a generator object, and then next(g) at each iteration.  
+    为了迭代，该for机制做着等价于g = iter(gen_AB())的操作来获取生成器对象，然后在每次迭代时执行next(g)。
+
 6. The loop block prints --> and the value returned by next(g). But this output will be seen only after the output of the print calls inside the generator function.  
+    该循环块打印: --> 以及next(g)返回的值。但该输出仅在生成器内部print调用输出后才能看到。
+
 7. The string 'start' appears as a result of print('start') in the generator function body.  
+    'start'作为生成器函数体中print('start')的结果出现。
+
 8. yield 'A' in the generator function body produces the value A consumed by the for loop, which gets assigned to the c variable and results in the output --> A.  
-9. Iteration continues with a second call next(g), advancing the generatorfunction body from yield 'A' to yield 'B'. The text continue is output because of the second print in the generator function body.  
+    函数体内的yield 'a'产出了for循环消耗的值A，该值被赋值给变量c并产生输出 --> A。
+
+9. Iteration continues with a second call next(g), advancing the generator function body from yield 'A' to yield 'B'. The text continue is output because of the second print in the generator function body.  
+    迭代继续第二次的调用next(g)，将生成器函数体从yield 'A'前进至yield 'B'。由于函数体中的第二个print，文本继续输出。
+
 10. yield 'B' produces the value B consumed by the for loop, which gets assigned to the c loop variable, so the loop prints --> B.  
+    yield 'B'产出了被for循环消耗的值B，该值被赋值给c循环遍历，所以loop打印--> B。
+
 11. Iteration continues with a third call next(it), advancing to the end of the body of the function. The text end. appears in the output because of the third print in the generator function body.  
+    迭代继续第三次调用next(it)，推进至函数体的结尾。由于函数体中的第三个pritn，文本输出出现end.。
+
 12. When the generator function body runs to the end, the generator object raises StopIteration. The for loop machinery catches that exception, and the loop terminates cleanly.  
+    当生成器函数体运行至结尾，生成器对象抛出StopIteration。for循环机制捕捉该异常并干净的终止。
