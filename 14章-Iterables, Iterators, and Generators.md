@@ -644,3 +644,26 @@ end. # 11
 
 12. When the generator function body runs to the end, the generator object raises StopIteration. The for loop machinery catches that exception, and the loop terminates cleanly.  
     当生成器函数体运行至结尾，生成器对象抛出StopIteration。for循环机制捕捉该异常并干净的终止。
+
+Now hopefully it’s clear how Sentence.__iter__ in Example 14-5 works: __iter__ is a generator function which, when called, builds a generator object that implements the iterator interface, so the SentenceIterator class is no longer needed.  
+    希望现在大家都清楚了例14-5中Sentence.__iter__的工作逻辑：__iter__是一个生成器函数，不论在何时哪里调用都会构建一个实现了迭代器接口的生成器对象，所以不再需要SentenceIterator类。
+
+This second version of Sentence is much shorter than the first, but it’s not as lazy as it could be. Nowadays, laziness is considered a good trait, at least in programming languages and APIs. A lazy implementation postpones producing values to the last possible moment. This saves memory and may avoid useless processing as well.  
+    Sentence的第二版比第一版短得多，但它并没有那么懒。如今，懒惰被认为是个优秀的特点，至少在编程语言与API中是这样。懒惰的实现将生成value的操作推迟到最后的时刻，这节省了内存同时也可以避免无用的操作。
+
+We’ll build a lazy Sentence class next.  
+    下一节我们将构建一个懒惰的Sentence。
+
+## Sentence Take #4: A Lazy Implementation 惰性实现
+
+The Iterator interface is designed to be lazy: next(my_iterator) produces one item at a time. The opposite of lazy is eager: lazy evaluation and eager evaluation are actual technical terms in programming language theory.  
+    Iterator接口被定义为lazy：next(my_iterator)一次只生成一项。lazy的对立面是eager：lazy evaluation与eager evaluation是编程语言理论中的实际技术用语。
+
+Our Sentence implementations so far have not been lazy because the __init__ eagerly builds a list of all words in the text, binding it to the self.words attribute. This will entail processing the entire text, and the list may use as much memory as the text itself(probably more; it depends on how many nonword characters are in the text). Most of this work will be in vain if the user only iterates over the first couple words.  
+    到目前为止我们的Sentence实现并不lazy，因为__iter__很“eager”地构建了文本中所有单词的列表，并将他绑定至self.words属性。这意味着将处理整个文本，并且列表可能用了和文本本身一样多的内存（有可能更多；这取决于文本中有多少非单词字符）。如果用户仅迭代前两个单词，那么大部分工作将是徒劳的。
+
+Whenever you are using Python 3 and start wondering “Is there a lazy way of doing this?”, often the answer is “Yes.”  
+
+The re.finditer function is a lazy version of re.findall which, instead of a list, returns a generator producing re.MatchObject instances on demand. If there are many matches, re.finditer saves a lot of memory. Using it, our third version of Sentence is now lazy: it only produces the next word when it is needed. The code is in Example 14-7.  
+
+Example 14-7. sentence_gen2.py: Sentence implemented using a generator function calling the re.finditer generator function
