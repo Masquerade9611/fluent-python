@@ -663,7 +663,87 @@ Our Sentence implementations so far have not been lazy because the __init__ eage
     到目前为止我们的Sentence实现并不lazy，因为__iter__很“eager”地构建了文本中所有单词的列表，并将他绑定至self.words属性。这意味着将处理整个文本，并且列表可能用了和文本本身一样多的内存（有可能更多；这取决于文本中有多少非单词字符）。如果用户仅迭代前两个单词，那么大部分工作将是徒劳的。
 
 Whenever you are using Python 3 and start wondering “Is there a lazy way of doing this?”, often the answer is “Yes.”  
+    不论你何时使用Python3然后开始思考“这是一个lazy方式吗？”，通常回答都是“是的。”
 
 The re.finditer function is a lazy version of re.findall which, instead of a list, returns a generator producing re.MatchObject instances on demand. If there are many matches, re.finditer saves a lot of memory. Using it, our third version of Sentence is now lazy: it only produces the next word when it is needed. The code is in Example 14-7.  
+    re.finditer方法是re.findall的lazy版本，取代list而返回了生成器，该生成器会按需生成re.MatchObject实例。如果有许多匹配，re.finditer会节省许多内存。通过使用这个，我们的第三版Sentence现在就是lazy的：仅在被需要时才生成下一个单词。具体代码见例14-7。
 
-Example 14-7. sentence_gen2.py: Sentence implemented using a generator function calling the re.finditer generator function
+Example 14-7. sentence_gen2.py: Sentence implemented using a generator function calling the re.finditer generator function  
+    例14-7. sentence_gen2.py：使用了通过调用re.finditer生成器方法的生成器函数的Sentence。
+
+```python
+import re
+import reprlib
+RE_WORD = re.compile('\w+')
+
+class Sentence:
+    def __init__(self, text):
+        self.text = text  # 1
+ 
+    def __repr__(self):
+        return 'Sentence(%s)' % reprlib.repr(self.text)
+ 
+    def __iter__(self):
+        for match in RE_WORD.finditer(self.text):  # 2
+            yield match.group()  # 3
+```
+
+1. No need to have a words list.
+2. finditer builds an iterator over the matches of RE_WORD on self.text, yielding MatchObject instances.
+3. match.group() extracts the actual matched text from the MatchObject instance.
+
+Generator functions are an awesome shortcut, but the code can be made even shorter
+with a generator expression.
+
+## Sentence Take #5: A Generator Expression
+
+Simple generator functions like the one in the previous Sentence class (Example 14-7) can be replaced by a generator expression.  
+
+A generator expression can be understood as a lazy version of a list comprehension: it does not eagerly build a list, but returns a generator that will lazily produce the items on demand. In other words, if a list comprehension is a factory of lists, a generator expression is a factory of generators.  
+
+Example 14-8 is a quick demo of a generator expression, comparing it to a list comprehension.  
+
+Example 14-8. The gen_AB generator function is used by a list comprehension, then by
+a generator expression
+
+```
+>>> def gen_AB(): # 1
+... print('start')
+... yield 'A'
+... print('continue')
+... yield 'B'
+... print('end.')
+...
+>>> res1 = [x*3 for x in gen_AB()] # 22
+start
+continue
+end.
+>>> for i in res1: # 3
+... print('-->', i)
+...
+--> AAA
+--> BBB
+>>> res2 = (x*3 for x in gen_AB()) # 4
+>>> res2 # 5
+<generator object <genexpr> at 0x10063c240>
+>>> for i in res2: # 6
+... print('-->', i)
+...
+start
+--> AAA
+continue
+--> BBB
+end.
+
+```
+
+1. This is the same gen_AB function from Example 14-6.
+2. The list comprehension eagerly iterates over the items yielded by the generator object produced by calling gen_AB(): 'A' and 'B'. Note the output in the next lines: start, continue, end.
+3. This for loop isiterating overthe res1 list produced by the list comprehension.
+4. The generator expression returns res2. The call to gen_AB() is made, but that call returns a generator, which is not consumed here.
+5. res2 is a generator object.
+6. Only when the for loop iterates over res2, the body of gen_AB actually executes. Each iteration of the for loop implicitly calls next(res2), advancing gen_AB to the next yield. Note the output of gen_AB with the output of the print in the for loop.
+
+So, a generator expression produces a generator, and we can use it to further reduce the code in the Sentence class. See Example 14-9.  
+
+Example 14-9. sentence_genexp.py: Sentence implemented using a generator expression  
