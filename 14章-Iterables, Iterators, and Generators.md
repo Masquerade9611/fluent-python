@@ -688,38 +688,44 @@ class Sentence:
             yield match.group()  # 3
 ```
 
-1. No need to have a words list.
-2. finditer builds an iterator over the matches of RE_WORD on self.text, yielding MatchObject instances.
-3. match.group() extracts the actual matched text from the MatchObject instance.
+1. No need to have a words list.  
+    不再需要单词列表。
+2. finditer builds an iterator over the matches of RE_WORD on self.text, yielding MatchObject instances.  
+    finditer在self.text的RE_WORD匹配基础上构建了一个迭代器，产出MatchObject实例。
+3. match.group() extracts the actual matched text from the MatchObject instance.  
+    match.group()从MatchObject实例中提取实际的匹配文本。
 
-Generator functions are an awesome shortcut, but the code can be made even shorter
-with a generator expression.
+Generator functions are an awesome shortcut, but the code can be made even shorter with a generator expression.  
+    生成器函数是一个很棒的快捷方式，但使用生成器表达式可以使代码变得更短。
 
-## Sentence Take #5: A Generator Expression
+## Sentence Take #5: A Generator Expression  生成器表达式
 
 Simple generator functions like the one in the previous Sentence class (Example 14-7) can be replaced by a generator expression.  
+    像上一个Sentence类（示例 14-7）中的简单生成器函数可以用生成器表达式替换。
 
 A generator expression can be understood as a lazy version of a list comprehension: it does not eagerly build a list, but returns a generator that will lazily produce the items on demand. In other words, if a list comprehension is a factory of lists, a generator expression is a factory of generators.  
+    生成器表达式可以被理解为列表推导式的lazy版本：他不会急忙构建一个列表，而是返回一个生成器，该生成器将在有需求的时候lazy地生成项。换句话说，如果一个列表表达式是列表的工厂，生成器表达式则是生成器的工厂。
 
 Example 14-8 is a quick demo of a generator expression, comparing it to a list comprehension.  
+    例14-8是生成器表达式的快速演示，与列表表达式进行了对比。
 
-Example 14-8. The gen_AB generator function is used by a list comprehension, then by
-a generator expression
+Example 14-8. The gen_AB generator function is used by a list comprehension, then by a generator expression  
+    例14.8 gen_AB生成器函数被一条列表表达式使用，然后被生成器表达式使用。
 
 ```
 >>> def gen_AB(): # 1
-... print('start')
-... yield 'A'
-... print('continue')
-... yield 'B'
-... print('end.')
+...     print('start')
+...     yield 'A'
+...     print('continue')
+...     yield 'B'
+...     print('end.')
 ...
->>> res1 = [x*3 for x in gen_AB()] # 22
+>>> res1 = [x*3 for x in gen_AB()] # 2
 start
 continue
 end.
 >>> for i in res1: # 3
-... print('-->', i)
+...     print('-->', i)
 ...
 --> AAA
 --> BBB
@@ -727,7 +733,7 @@ end.
 >>> res2 # 5
 <generator object <genexpr> at 0x10063c240>
 >>> for i in res2: # 6
-... print('-->', i)
+...     print('-->', i)
 ...
 start
 --> AAA
@@ -737,13 +743,21 @@ end.
 
 ```
 
-1. This is the same gen_AB function from Example 14-6.
-2. The list comprehension eagerly iterates over the items yielded by the generator object produced by calling gen_AB(): 'A' and 'B'. Note the output in the next lines: start, continue, end.
-3. This for loop isiterating overthe res1 list produced by the list comprehension.
-4. The generator expression returns res2. The call to gen_AB() is made, but that call returns a generator, which is not consumed here.
-5. res2 is a generator object.
-6. Only when the for loop iterates over res2, the body of gen_AB actually executes. Each iteration of the for loop implicitly calls next(res2), advancing gen_AB to the next yield. Note the output of gen_AB with the output of the print in the for loop.
+1. This is the same gen_AB function from Example 14-6.  
+    这与例14-6中gen_AB函数相同。
+2. The list comprehension eagerly iterates over the items yielded by the generator object produced by calling gen_AB(): 'A' and 'B'. Note the output in the next lines: start, continue, end.  
+    列表表达式急切地遍历了通过调用gen_AB()生成器对象产出的项："A"与"B"。注意后面几行的输出：start, continue, end。
+3. This for loop is iterating over the res1 list produced by the list comprehension.  
+    for循环在遍历由列表表达式生成的res1列表。
+4. The generator expression returns res2. The call to gen_AB() is made, but that call returns a generator, which is not consumed here.  
+    生成器表达式返回res2。调用gen_AB()，但该调用返回生成器，在这里没有消耗。
+5. res2 is a generator object.  
+    res2是生成器对象。
+6. Only when the for loop iterates over res2, the body of gen_AB actually executes. Each iteration of the for loop implicitly calls next(res2), advancing gen_AB to the next yield. Note the output of gen_AB with the output of the print in the for loop.  
+    只有当for循环遍历res2的时候，gen_AB函数体才实际执行。for循环的每次迭代都在隐式地调用next(res2)，推动gen_AB至下一个yield。注意gen_AB输出与for循环中print的输出。
 
 So, a generator expression produces a generator, and we can use it to further reduce the code in the Sentence class. See Example 14-9.  
+    所以，生成器表达式生产生成器，然后我们可以使用他来进一步减少Sentenc类的代码量。见例14-9。
 
 Example 14-9. sentence_genexp.py: Sentence implemented using a generator expression  
+    例14-9. sentence_genxp.py：通过生成器表达式实现的Sentence
