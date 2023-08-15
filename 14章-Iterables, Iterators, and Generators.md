@@ -761,3 +761,52 @@ So, a generator expression produces a generator, and we can use it to further re
 
 Example 14-9. sentence_genexp.py: Sentence implemented using a generator expression  
     例14-9. sentence_genxp.py：通过生成器表达式实现的Sentence
+
+```python
+import re
+import reprlib
+
+RE_WORD = re.compile('\w+')
+
+class Sentence:
+    def __init__(self, text):
+        self.text = text
+
+    def __repr__(self):
+        return 'Sentence(%s)' % reprlib.repr(self.text)
+
+    def __iter__(self):
+        return (match.group() for match in RE_WORD.finditer(self.text))
+```
+
+The only difference from Example 14-7 is the __iter__ method, which here is not a generator function (it has no yield) but uses a generator expression to build a generator and then returns it. The end result is the same: the caller of __iter__ gets a generator object.  
+    与例14-7唯一的不同是__iter__方法，这里不是生成器函数（他没有yield），而是用生成器表达式来构建一个生成器并在之后返回他。最终结果是相同的：__iter__的调用者会获得一个生成器对象。
+
+Generator expressions are syntactic sugar: they can always be replaced by generator functions, but sometimes are more convenient. The next section is about generator expression usage.  
+    生成器表达式是一个语法糖：他们总是能被生成器函数来替代，但有时更方便。下一节有关于生成器表达式的用法。
+
+## Generator Expressions: When to Use Them 生成器表达式：使用时机
+
+I used several generator expressions when implementing the Vector class in Example 10-16. Each of the methods __eq__, __hash__, __abs__, angle, angles, format, __add__, and __mul__ has a generator expression. In all those methods, a list comprehension would also work, at the cost of using more memory to store the intermediate list values.  
+    当实现例10-16中的Vector类的时候，我使用了几个生成器表达式。每个方法__eq__, __hash__, __abs__, angle, angles, format, __add__与__mul__都有生成器表达式。所有这些方法，用列表推导也可以，但代价就是用更多内存来存储中间的列表值。
+
+In Example 14-9, we saw that a generator expression is a syntactic shortcut to create a generator without defining and calling a function. On the other hand, generator functions are much more flexible: you can code complex logic with multiple statements, and can even use them as coroutines (see Chapter 16).  
+    例14-9中，我们看到生成器表达式是脱离定义与调用函数来创建生成器的语法捷径。另一方面，生成器函数更加灵活：你可以用多个语句编写复杂的逻辑；甚至可以将他们用作协程（见16章）。
+
+For the simpler cases, a generator expression will do, and it’s easier to read at a glance, as the Vector example shows.  
+    对于更简单的情况，生成器表达式就可以了，而且更容易一目了然，如Vector示例所示。
+
+My rule of thumb in choosing the syntax to use is simple: if the generator expression spans more than a couple of lines, I prefer to code a generator function for the sake of readability. Also, because generator functions have a name, they can be reused. You can always name a generator expression and use it later by assigning it to a variable, of course, but that is stretching its intended usage as a one-off generator.  
+    在选择使用哪种语法上我的经验法则很简单：如果生成器表达式跨越了几行，我更倾向于写一个生成器函数，这样更易读。同样，因为生成器函数有名称，可以复用。你也可以为生成器表达式命名，通过将其赋值给一个变量以在后续使用，当然，这超出了他作为一个一次性生成器的预期用途。
+
+    Syntax Tip 语法技巧
+    When a generator expression is passed as the single argument to a function or constructor, you don’t need to write a set of parentheses for the function call and another to enclose the generator expression. A single pair will do, like in the Vector call from the __mul__ method in Example 10-16, reproduced here. However, if there are more function arguments after the generator expression, you need to enclose it in parentheses to avoid a SyntaxError:  
+    当生成器表达式作为一个单参数被传给函数或构造函数，你不需要为函数调用写括号，也不需要为生成器表达式写另一组括号。一对就可以，就像示例 10-16 中 __mul__ 方法的 Vector 调用一样，在此处复制。 但是，如果生成器表达式后面有更多函数参数，则需要将其括在括号中以避免语法错误：
+        def __mul__(self, scalar):
+            if isinstance(scalar, numbers.Real):
+                return Vector(n * scalar for n in self)
+            else:
+                return NotImplemented
+
+The Sentence examples we’ve seen exemplify the use of generators playing the role of classic iterators: retrieving items from a collection. But generators can also be used to produce values independent of a data source. The next section shows an example of that.  
+    我们看到的Sentence示例说明了生成器在传统迭代器中扮演的角色：从集合中检索项目。但生成器也可以被用于不依赖数据源产出value。下一节会对此展示一个示例。
