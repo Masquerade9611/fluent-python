@@ -810,3 +810,87 @@ My rule of thumb in choosing the syntax to use is simple: if the generator expre
 
 The Sentence examples we’ve seen exemplify the use of generators playing the role of classic iterators: retrieving items from a collection. But generators can also be used to produce values independent of a data source. The next section shows an example of that.  
     我们看到的Sentence示例说明了生成器在传统迭代器中扮演的角色：从集合中检索项目。但生成器也可以被用于不依赖数据源产出value。下一节会对此展示一个示例。
+
+## Another Example: Arithmetic Progression Generator
+
+The classic Iterator pattern is all about traversal: navigating some data structure. But a standard interface based on a method to fetch the next item in a series is also useful when the items are produced on the fly, instead of retrieved from a collection. For example, the range built-in generates a bounded arithmetic progression (AP) of integers, and the itertools.count function generates a boundless AP.  
+
+We’ll cover itertools.count in the next section, but what if you need to generate a bounded AP of numbers of any type?  
+
+Example 14-10 shows a few console tests of an ArithmeticProgression class we will see in a moment. The signature of the constructor in Example 14-10 is Arithmetic Progression(begin, step[, end]). The range() function is similar to the ArithmeticProgression here, but its full signature is range(start, stop[, step]). I chose to implement a different signature because for an arithmetic progression the step is mandatory but end is optional. I also changed the argument names from start/stop to begin/end to make it very clear that I opted for a different signature. In each test in Example 14-10 I call list() on the result to inspect the generated values.  
+
+Example 14-10. Demonstration of an ArithmeticProgression class
+
+```
+ >>> ap = ArithmeticProgression(0, 1, 3)
+ >>> list(ap)
+ [0, 1, 2]
+ >>> ap = ArithmeticProgression(1, .5, 3)
+ >>> list(ap)
+ [1.0, 1.5, 2.0, 2.5]
+ >>> ap = ArithmeticProgression(0, 1/3, 1)
+ >>> list(ap)
+ [0.0, 0.3333333333333333, 0.6666666666666666]
+ >>> from fractions import Fraction
+ >>> ap = ArithmeticProgression(0, Fraction(1, 3), 1)
+ >>> list(ap)
+ [Fraction(0, 1), Fraction(1, 3), Fraction(2, 3)]
+ >>> from decimal import Decimal
+ >>> ap = ArithmeticProgression(0, Decimal('.1'), .3)
+ >>> list(ap)
+ [Decimal('0.0'), Decimal('0.1'), Decimal('0.2')]
+```
+
+Note that type of the numbers in the resulting arithmetic progression follows the type of begin or step, according to the numeric coercion rules of Python arithmetic. In Example 14-10, you see lists of int, float, Fraction, and Decimal numbers.  
+
+Example 14-11 lists the implementation of the ArithmeticProgression class.  
+
+Example 14-11. The ArithmeticProgression class  
+
+```python
+class ArithmeticProgression:
+    def __init__(self, begin, step, end=None):  # 1
+        self.begin = begin
+        self.step = step
+        self.end = end # None -> "infinite" series
+ 
+    def __iter__(self):
+        result = type(self.begin + self.step)(self.begin)  # 2
+        forever = self.end is None  # 3
+        index = 0
+        while forever or result < self.end:  # 4
+            yield result  # 5
+            index += 1
+            result = self.begin + self.step * index  # 6
+```
+
+1. __init__ requires two arguments: begin and step. end is optional, if it’s None, the series will be unbounded.
+2. This line produces a result value equal to self.begin, but coerced to the type of the subsequent additions.[9]
+3. For readability, the forever flag will be True if the self.end attribute is None, resulting in an unbounded series.  
+
+4. This loop runs forever or until the result matches or exceeds self.end. When this loop exits, so does the function.
+5. The current result is produced.  
+6. The next potentialresult is calculated. It may never be yielded, because the while loop may terminate.  
+
+In the last line of Example 14-11, instead of simply incrementing the result with self.step iteratively, I opted to use an index variable and calculate each result by adding self.begin to self.step multiplied by index to reduce the cumulative effect of errors when working with with floats.  
+
+The ArithmeticProgression class from Example 14-11 works as intended, and is a clear example of the use of a generator function to implement the __iter__ special method. However, if the whole point of a class is to build a generator by implementing __iter__, the class can be reduced to a generator function. A generator function is, after all, a generator factory.  
+
+Example 14-12 shows a generator function called aritprog_gen that does the same job as ArithmeticProgression but with less code. The tests in Example 14-10 all pass if you just call aritprog_gen instead of ArithmeticProgression.[10]  
+
+Example 14-12. The aritprog_gen generator function
+```python
+def aritprog_gen(begin, step, end=None):
+    result = type(begin + step)(begin)
+    forever = end is None
+    index = 0
+    while forever or result < end:
+        yield result
+        index += 1
+        result = begin + step * index
+```
+
+Example 14-12 is pretty cool, but always remember: there are plenty of ready-to-use generators in the standard library, and the next section will show an even cooler implementation using the itertools module.  
+
+[9]. In Python 2, there was a coerce() built-in function but it’s gone in Python 3, deemed unnecessary because the numeric coercion rules are implicit in the arithmetic operator methods. So the best way I could think of to coerce the initial value to be of the same type as the rest of the series was to perform the addition and use its type to convert the result. I asked about this in the Python-list and got an excellent response from Steven D’Aprano.
+[10]. The 14-it-generator/ directory in the Fluent Python code repository includes doctests and a script, aritprog_runner.py, which runs the tests against all variations of the aritprog*.py scripts.  
