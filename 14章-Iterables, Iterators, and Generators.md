@@ -811,11 +811,13 @@ My rule of thumb in choosing the syntax to use is simple: if the generator expre
 The Sentence examples we’ve seen exemplify the use of generators playing the role of classic iterators: retrieving items from a collection. But generators can also be used to produce values independent of a data source. The next section shows an example of that.  
     我们看到的Sentence示例说明了生成器在传统迭代器中扮演的角色：从集合中检索项目。但生成器也可以被用于不依赖数据源产出value。下一节会对此展示一个示例。
 
-## Another Example: Arithmetic Progression Generator
+## Another Example: Arithmetic Progression Generator 等差数列生成器
 
 The classic Iterator pattern is all about traversal: navigating some data structure. But a standard interface based on a method to fetch the next item in a series is also useful when the items are produced on the fly, instead of retrieved from a collection. For example, the range built-in generates a bounded arithmetic progression (AP) of integers, and the itertools.count function generates a boundless AP.  
+    经典Iterator模式都是关于遍历的：导航一些数据结构。但是，当item是动态生成而不是从集合中检索时，基于用于在序列中获取下一项的方法的标准接口也很有用。举个例子，内建的range生成整数的有界等差级数（AP），itertools.count函数生成无界AP。
 
 We’ll cover itertools.count in the next section, but what if you need to generate a bounded AP of numbers of any type?  
+    我们将在下一节介绍itertools.count，但是
 
 Example 14-10 shows a few console tests of an ArithmeticProgression class we will see in a moment. The signature of the constructor in Example 14-10 is Arithmetic Progression(begin, step[, end]). The range() function is similar to the ArithmeticProgression here, but its full signature is range(start, stop[, step]). I chose to implement a different signature because for an arithmetic progression the step is mandatory but end is optional. I also changed the argument names from start/stop to begin/end to make it very clear that I opted for a different signature. In each test in Example 14-10 I call list() on the result to inspect the generated values.  
 
