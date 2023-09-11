@@ -817,11 +817,13 @@ The classic Iterator pattern is all about traversal: navigating some data struct
     经典Iterator模式都是关于遍历的：导航一些数据结构。但是，当item是动态生成而不是从集合中检索时，基于用于在序列中获取下一项的方法的标准接口也很有用。举个例子，内建的range生成整数的有界等差级数（AP），itertools.count函数生成无界AP。
 
 We’ll cover itertools.count in the next section, but what if you need to generate a bounded AP of numbers of any type?  
-    我们将在下一节介绍itertools.count，但是
+    我们将在下一节介绍itertools.count，但是如果你需要生成一个任意类型数字的有界AP该怎么办？
 
-Example 14-10 shows a few console tests of an ArithmeticProgression class we will see in a moment. The signature of the constructor in Example 14-10 is Arithmetic Progression(begin, step[, end]). The range() function is similar to the ArithmeticProgression here, but its full signature is range(start, stop[, step]). I chose to implement a different signature because for an arithmetic progression the step is mandatory but end is optional. I also changed the argument names from start/stop to begin/end to make it very clear that I opted for a different signature. In each test in Example 14-10 I call list() on the result to inspect the generated values.  
+Example 14-10 shows a few console tests of an ArithmeticProgression class we will see in a moment. The signature of the constructor in Example 14-10 is ArithmeticProgression(begin, step[, end]). The range() function is similar to the ArithmeticProgression here, but its full signature is range(start, stop[, step]). I chose to implement a different signature because for an arithmetic progression the step is mandatory but end is optional. I also changed the argument names from start/stop to begin/end to make it very clear that I opted for a different signature. In each test in Example 14-10 I call list() on the result to inspect the generated values.  
+    例14-10展示了ArithmeticProgression类的一点控制台测试，我们马上就能看到。例14-10中构造函数的用法是ArithmeticProgression(begin, step[, end])。这里range()函数近似于ArithmeticProgression，但完整的用法是range(start, stop[, step])。我选择实现不同的用法，因为对等差数列来说，step是强制的而end是可选的。我也改变了参数名，从start/stop到begin/end，这样会非常清晰表明出我选择了不同的用法。在例14-10中的任何测试中，我对结果都调用了list()来检查生成的值。
 
-Example 14-10. Demonstration of an ArithmeticProgression class
+Example 14-10. Demonstration of an ArithmeticProgression class  
+    例14-10. ArithmeticProgression类的示范
 
 ```
  >>> ap = ArithmeticProgression(0, 1, 3)
@@ -844,6 +846,7 @@ Example 14-10. Demonstration of an ArithmeticProgression class
 ```
 
 Note that type of the numbers in the resulting arithmetic progression follows the type of begin or step, according to the numeric coercion rules of Python arithmetic. In Example 14-10, you see lists of int, float, Fraction, and Decimal numbers.  
+    注意
 
 Example 14-11 lists the implementation of the ArithmeticProgression class.  
 
