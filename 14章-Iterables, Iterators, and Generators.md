@@ -846,11 +846,13 @@ Example 14-10. Demonstration of an ArithmeticProgression class
 ```
 
 Note that type of the numbers in the resulting arithmetic progression follows the type of begin or step, according to the numeric coercion rules of Python arithmetic. In Example 14-10, you see lists of int, float, Fraction, and Decimal numbers.  
-    注意
+    注意，根据Python算术的数字强制规则，算术级数中的数字类型遵循begin或step的类型。示例14-10中，你看到了int，float，Fraction与Decimal数字的列表。
 
 Example 14-11 lists the implementation of the ArithmeticProgression class.  
+    例14-11列出了ArithmeticProgression类的实现。
 
 Example 14-11. The ArithmeticProgression class  
+    例14-111 ArithmeticProgression类
 
 ```python
 class ArithmeticProgression:
@@ -869,21 +871,30 @@ class ArithmeticProgression:
             result = self.begin + self.step * index  # 6
 ```
 
-1. __init__ requires two arguments: begin and step. end is optional, if it’s None, the series will be unbounded.
-2. This line produces a result value equal to self.begin, but coerced to the type of the subsequent additions.[9]
+1. __init__ requires two arguments: begin and step. end is optional, if it’s None, the series will be unbounded.  
+    __init__需要两个参数：begin与step。end为可选，如果为None，级数就是无限。
+2. This line produces a result value equal to self.begin, but coerced to the type of the subsequent additions.[9]  
+    该行生成一个等于self.begin的值，但强制转换为后续添加的类型。
 3. For readability, the forever flag will be True if the self.end attribute is None, resulting in an unbounded series.  
-
-4. This loop runs forever or until the result matches or exceeds self.end. When this loop exits, so does the function.
+    为了便于阅读，forever标记将在self.end属性为None时置为True，从而产生无界级数。
+4. This loop runs forever or until the result matches or exceeds self.end. When this loop exits, so does the function.  
+    这个循环将无限循环或是直到结果大于等于self.end。当循环退出时，函数也退出。
 5. The current result is produced.  
-6. The next potentialresult is calculated. It may never be yielded, because the while loop may terminate.  
+    产出当前结果。
+6. The next potential result is calculated. It may never be yielded, because the while loop may terminate.  
+    计算下一个潜在的结果。他可能永远不会被产出，因为while循环有可能终止。
 
 In the last line of Example 14-11, instead of simply incrementing the result with self.step iteratively, I opted to use an index variable and calculate each result by adding self.begin to self.step multiplied by index to reduce the cumulative effect of errors when working with with floats.  
+    在例14-11的最后一行，我没有简单地使用self.step迭代地递增结果，而是选择用index变量然后计算各自的结果（通过self.begin + self.step * index）以减少使用浮点数时错误的累计影响。
 
 The ArithmeticProgression class from Example 14-11 works as intended, and is a clear example of the use of a generator function to implement the __iter__ special method. However, if the whole point of a class is to build a generator by implementing __iter__, the class can be reduced to a generator function. A generator function is, after all, a generator factory.  
+    例14-11的ArithmeticProgression类按预期运行，这是一个使用生成器函数完成__iter__特殊方法的清晰示例。但如果一个类的重点是为了通过完成__iter__来创建生成器，那这个类就可以简化成一个生成器函数。毕竟，生成器函数就是一个生成器工厂。
 
 Example 14-12 shows a generator function called aritprog_gen that does the same job as ArithmeticProgression but with less code. The tests in Example 14-10 all pass if you just call aritprog_gen instead of ArithmeticProgression.[10]  
+    例14-12展示了一个叫做aritprog_gen的生成器函数，和ArithmeticProgression功能一样但用了更少的代码。在例14-10中，如果将ArithmeticProgression都替换为ariprog_gen也都可以pass。
 
 Example 14-12. The aritprog_gen generator function
+    例14-12. aritprog_gen生成器函数
 ```python
 def aritprog_gen(begin, step, end=None):
     result = type(begin + step)(begin)
@@ -896,6 +907,56 @@ def aritprog_gen(begin, step, end=None):
 ```
 
 Example 14-12 is pretty cool, but always remember: there are plenty of ready-to-use generators in the standard library, and the next section will show an even cooler implementation using the itertools module.  
+    例14-12非常酷，但要记住：标准库中有大量供使用的生成器，下一节将展示通过使用itertools模块的更酷的实现。
 
-[9]. In Python 2, there was a coerce() built-in function but it’s gone in Python 3, deemed unnecessary because the numeric coercion rules are implicit in the arithmetic operator methods. So the best way I could think of to coerce the initial value to be of the same type as the rest of the series was to perform the addition and use its type to convert the result. I asked about this in the Python-list and got an excellent response from Steven D’Aprano.
+[9]. In Python 2, there was a coerce() built-in function but it’s gone in Python 3, deemed unnecessary because the numeric coercion rules are implicit in the arithmetic operator methods. So the best way I could think of to coerce the initial value to be of the same type as the rest of the series was to perform the addition and use its type to convert the result. I asked about this in the Python-list and got an excellent response from Steven D’Aprano.  
+    在Python2中，这里是内建函数coerce()但他在Python3中被删掉了，在算术运算符方法中数字强制规则隐含其中，因此这被视为非必需的。所以我认为将初始值强制归属为该系列其余部分相同类型的最好方式是执行加法然后使用它的类型来转换结果。我在Python-list中询问了这个问题，然后从Steven D'Aprano那里获取了很好的回答。
 [10]. The 14-it-generator/ directory in the Fluent Python code repository includes doctests and a script, aritprog_runner.py, which runs the tests against all variations of the aritprog*.py scripts.  
+
+### Arithmetic Progression with itertools 使用itertools的等差数列
+
+The itertools module in Python 3.4 has 19 generator functions that can be combined in a variety of interesting ways.  
+    Python3.4中的itertools模块拥有19个生成器函数，他们可以用各种有趣的方式结合使用。
+
+For example, the itertools.count function returns a generator that produces numbers. Without arguments, it produces a series of integers starting with 0. But you can provide optional start and step values to achieve a result very similar to our aritprog_gen functions:  
+    举个例子，itertools.count方法返回了一个产出数字的生成器。不传参数，他会产出
+```
+>>> import itertools
+>>> gen = itertools.count(1, .5)
+>>> next(gen)
+1
+>>> next(gen)
+1.5
+>>> next(gen)
+2.0
+>>> next(gen)
+2.5
+```
+
+However, itertools.count never stops, so if you call list(count()), Python will try to build a list larger than available memory and your machine will be very grumpy long before the call fails.  
+
+On the other hand, there is the itertools.takewhile function: it produces a generator that consumes another generator and stops when a given predicate evaluates to False. So we can combine the two and write this:  
+```
+>>> gen = itertools.takewhile(lambda n: n < 3, itertools.count(1, .5))
+>>> list(gen)
+[1, 1.5, 2.0, 2.5]
+```
+
+Leveraging takewhile and count, Example 14-13 is sweet and short.  
+
+Example 14-13. aritprog_v3.py: this works like the previous aritprog_gen functions  
+
+```python
+import itertools
+
+def aritprog_gen(begin, step, end=None):
+    first = type(begin + step)(begin)
+    ap_gen = itertools.count(first, step)
+    if end is not None:
+        ap_gen = itertools.takewhile(lambda n: n < end, ap_gen)
+    return ap_gen
+```
+
+Note that aritprog_gen is not a generator function in Example 14-13: it has no yield in its body. But it returns a generator, so it operates as a generator factory, just as a generator function does.  
+
+The point of Example 14-13 is: when implementing generators, know what is available in the standard library, otherwise there’s a good chance you’ll reinvent the wheel. That’s why the next section covers several ready-to-use generator functions.  
