@@ -919,7 +919,7 @@ The itertools module in Python 3.4 has 19 generator functions that can be combin
     Python3.4中的itertools模块拥有19个生成器函数，他们可以用各种有趣的方式结合使用。
 
 For example, the itertools.count function returns a generator that produces numbers. Without arguments, it produces a series of integers starting with 0. But you can provide optional start and step values to achieve a result very similar to our aritprog_gen functions:  
-    举个例子，itertools.count方法返回了一个产出数字的生成器。不传参数，他会产出
+    举个例子，itertools.count方法返回了一个产出数字的生成器。不传参数，他会产出一系列从0开始的整数。但你可以传入可选的start与step值，以取得和我们的aritprog_gen方法近似的效果。
 ```
 >>> import itertools
 >>> gen = itertools.count(1, .5)
@@ -934,8 +934,10 @@ For example, the itertools.count function returns a generator that produces numb
 ```
 
 However, itertools.count never stops, so if you call list(count()), Python will try to build a list larger than available memory and your machine will be very grumpy long before the call fails.  
+    然而，itertools.count永不停止，所以如果你调用了list(count())，Python将构建出一个比可用内存更大的list，在调用失败的很长一段时间之前你的电脑将会非常暴躁。
 
 On the other hand, there is the itertools.takewhile function: it produces a generator that consumes another generator and stops when a given predicate evaluates to False. So we can combine the two and write this:  
+    换句话说，itertools.takewhile函数：他生产了一个生成器，该生成器消费了其他的生成器，并且当给定断言计算为False时结束。所以我们可以结合这两个，写成这样：
 ```
 >>> gen = itertools.takewhile(lambda n: n < 3, itertools.count(1, .5))
 >>> list(gen)
@@ -943,8 +945,10 @@ On the other hand, there is the itertools.takewhile function: it produces a gene
 ```
 
 Leveraging takewhile and count, Example 14-13 is sweet and short.  
+    利用takewhile与count，例14-13会很简洁。
 
 Example 14-13. aritprog_v3.py: this works like the previous aritprog_gen functions  
+    例14-13. aritprog_v3.py：机制类似之前的aritprog_gen函数
 
 ```python
 import itertools
@@ -958,5 +962,7 @@ def aritprog_gen(begin, step, end=None):
 ```
 
 Note that aritprog_gen is not a generator function in Example 14-13: it has no yield in its body. But it returns a generator, so it operates as a generator factory, just as a generator function does.  
+    注意，14-13中的aritprog_gen不是生成器函数：函数体内没有yield。但是他返回一个生成器，所以他使用起来像生成器工厂，就像生成器函数一样。
 
 The point of Example 14-13 is: when implementing generators, know what is available in the standard library, otherwise there’s a good chance you’ll reinvent the wheel. That’s why the next section covers several ready-to-use generator functions.  
+    例14-13的重点是：当实现生成器时，请了解标准库中那些是可用的，否则你很可能重新造轮子。这就是下一节将介绍几个即用的生成器函数的原因。
