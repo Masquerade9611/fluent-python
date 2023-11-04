@@ -966,3 +966,358 @@ Note that aritprog_gen is not a generator function in Example 14-13: it has no y
 
 The point of Example 14-13 is: when implementing generators, know what is available in the standard library, otherwise there’s a good chance you’ll reinvent the wheel. That’s why the next section covers several ready-to-use generator functions.  
     例14-13的重点是：当实现生成器时，请了解标准库中那些是可用的，否则你很可能重新造轮子。这就是下一节将介绍几个即用的生成器函数的原因。
+
+## Generator Functions in the Standard Library 标准库中的生成器函数
+
+The standard library provides many generators, from plain-text file objects providing line-by-line iteration, to the awesome os.walk function, which yields filenames while traversing a directory tree, making recursive filesystem searches as simple as a for loop.  
+    标准库提供了许多生成器，从提供逐行迭代的纯文本文件对象，到惊人的os.walk函数，当遍历目录树时他会产出文件名，这让递归的文件系统搜索起来和for循环一样简单。
+
+The os.walk generator function is impressive, but in this section I want to focus on general-purpose functions that take arbitrary iterables as arguments and return generators that produce selected, computed, or rearranged items. In the following tables, I summarize two dozen of them, from the built-in, itertools, and functools modules. For convenience, I grouped them by high-level functionality, regardless of where they are defined.  
+    os.walk生成器函数令人钦佩，但本节我更想聚焦于一般用途的函数，他们将随意的可迭代对象作为参数，然后返回生成选定、计算或重新排列的项的生成器。在下面的表格中，我，从内建的itertools与functools模块中选择出这种生成器，并汇总出两打。为了方便，我将他们按照高级功能进行了分组，无论他们是在哪里定义的。
+·
+    Perhaps you know all the functions mentioned in this section, but some of them are underused, so a quick overview may be good to recall what’s already available.  
+    也许你了解所有本节提到的函数，但他们中有一些是没有充分利用的，所以快速概览可能会有助于回忆已有的内容。
+
+The first group are filtering generator functions: they yield a subset of items produced by the input iterable, without changing the items themselves. We used itertools.take while previously in this chapter, in “Arithmetic Progression with itertools” on page 423. Like takewhile, most functions listed in Table 14-1 take a predicate, which is a one-argument Boolean function that will be applied to each item in the input to determine whether the item is included in the output.  
+    第一组是筛选的生成器函数：他们产出一个由输出的可迭代对象产出的项的子集，而不改变这些项本身。在本章前面内容中我们使用了itertools.take，在423页的“Arithmetic Progression with itertools”中。像takewhile一样，表14-1中列的大部分函数都要获取一个断言，这是一个单参数布尔型函数，将应用于输入中的每一项，以决定该项是否被包含在输出中。
+
+Table 14-1. Filtering generator functions  
+    表14-1 过滤型生成器函数
+| Module | Function | Description |
+| --- | --- | --- |
+| itertools | compress(it, selector_it) | Consumes two iterables in parallel; yields items from it whenever the corresponding item in selector_it is truthy |
+| itertools | dropwhile(predicate, it) | Consumes it skipping items while predicate computes truthy, then yields every remaining item (no further checks are made) |
+| (built-in) | filter(predicate,it) | Applies predicate to each item of iterable, yielding the item if predicate(item) is truthy; if predicate is None, only truthy items are yielded |
+| itertools | filterfalse(predicate, it) | Same as filter, with the predicate logic negated: yields items whenever predicate computes falsy |
+| itertools | islice(it, stop) or islice(it, start, stop, step=1) | Yields items from a slice of it, similar to s[:stop] or s[start:stop:step] except it can be any iterable, and the operation is lazy |
+| itertools | takewhile(predicate, it) | Yields items while predicate computes truthy, then stops and no further checks are made |
+
+| 模块 | 方法 | 描述 |
+| --- | --- | --- |
+| itertools | compress(it, selector_it) | 并行使用两个可迭代对象; yields items from it whenever the corresponding item in selector_it is truthy |
+| itertools | dropwhile(predicate, it) | Consumes it skipping items while predicate computes truthy, then yields every remaining item (no further checks are made) |
+| (built-in) | filter(predicate,it) | Applies predicate to each item of iterable, yielding the item if predicate(item) is truthy; if predicate is None, only truthy items are yielded |
+| itertools | filterfalse(predicate, it) | Same as filter, with the predicate logic negated: yields items whenever predicate computes falsy |
+| itertools | islice(it, stop) or islice(it, start, stop, step=1) | Yields items from a slice of it, similar to s[:stop] or s[start:stop:step] except it can be any iterable, and the operation is lazy |
+| itertools | takewhile(predicate, it) | Yields items while predicate computes truthy, then stops and no further checks are made |
+
+The console listing in Example 14-14 shows the use of all functions in Table 14-1.  
+
+Example 14-14. Filtering generator functions examples  
+```
+>>> def vowel(c):
+... return c.lower() in 'aeiou'
+...
+>>> list(filter(vowel, 'Aardvark'))
+['A', 'a', 'a']
+>>> import itertools
+>>> list(itertools.filterfalse(vowel, 'Aardvark'))
+['r', 'd', 'v', 'r', 'k']
+>>> list(itertools.dropwhile(vowel, 'Aardvark'))
+['r', 'd', 'v', 'a', 'r', 'k']
+>>> list(itertools.takewhile(vowel, 'Aardvark'))
+['A', 'a']
+>>> list(itertools.compress('Aardvark', (1,0,1,1,0,1)))
+['A', 'r', 'd', 'a']
+>>> list(itertools.islice('Aardvark', 4))
+['A', 'a', 'r', 'd']
+>>> list(itertools.islice('Aardvark', 4, 7))
+['v', 'a', 'r']
+>>> list(itertools.islice('Aardvark', 1, 7, 2))
+['a', 'd', 'a']
+```
+
+The next group are the mapping generators: they yield items computed from each individual item in the input iterable—or iterables, in the case of map and starmap.[11] The generators in Table 14-2 yield one result per item in the input iterables. If the input comes from more than one iterable, the output stops as soon as the first input iterable is exhausted.  
+
+[11]. Here the term “mapping” is unrelated to dictionaries, but has to do with the map built-in
+
+Table 14-2. Mapping generator functions
+| Module | Function | Description |
+| --- | --- | --- |
+| itertools | accumulate(it, [func]) | Yieldsaccumulatedsums; if func isprovided,yields theresultofapplyingit tothe first pair of items, then to the first result and next item, etc. |
+| (built-in) | enumerate(iterable, start=0) | Yields 2-tuples of the form (index, item), where index is counted from start, and item is taken from the iterable |
+| (built-in) | map(func, it1, [it2, …, itN]) | Applies func toeach itemof it,yieldingtheresult; if N iterablesaregiven, func must take N arguments and the iterables will be consumed in parallel |
+| itertools | starmap(func, it)  | Applies func toeach itemof it,yieldingtheresult; theinput iterableshouldyield iterable items iit, and func is applied as func(*iit) |
+
+Example 14-15 demonstrates some uses of itertools.accumulate.  
+
+Example 14-15. itertools.accumulate generator function examples  
+```
+>>> sample = [5, 4, 2, 8, 7, 6, 3, 0, 9, 1]
+>>> import itertools
+>>> list(itertools.accumulate(sample)) # 1
+[5, 9, 11, 19, 26, 32, 35, 35, 44, 45]
+>>> list(itertools.accumulate(sample, min)) # 2
+[5, 4, 2, 2, 2, 2, 2, 0, 0, 0]
+>>> list(itertools.accumulate(sample, max)) # 3
+[5, 5, 5, 8, 8, 8, 8, 8, 9, 9]
+>>> import operator
+>>> list(itertools.accumulate(sample, operator.mul)) # 4
+[5, 20, 40, 320, 2240, 13440, 40320, 0, 0, 0]
+>>> list(itertools.accumulate(range(1, 11), operator.mul))
+[1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800] # 5
+```
+
+1. Running sum.
+2. Running minimum.
+3. Running maximum.
+4. Running product.
+5. Factorials from 1! to 10!.
+
+The remaining functions of Table 14-2 are shown in Example 14-16.  
+
+Example 14-16. Mapping generator function examples  
+```
+>>> list(enumerate('albatroz', 1)) # 1
+[(1, 'a'), (2, 'l'), (3, 'b'), (4, 'a'), (5, 't'), (6, 'r'), (7, 'o'), (8, 'z')]
+>>> import operator
+>>> list(map(operator.mul, range(11), range(11))) # 2
+[0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+>>> list(map(operator.mul, range(11), [2, 4, 8])) # 3
+[0, 4, 16]
+>>> list(map(lambda a, b: (a, b), range(11), [2, 4, 8])) # 4
+[(0, 2), (1, 4), (2, 8)]
+>>> import itertools
+>>> list(itertools.starmap(operator.mul, enumerate('albatroz', 1))) # 5
+['a', 'll', 'bbb', 'aaaa', 'ttttt', 'rrrrrr', 'ooooooo', 'zzzzzzzz']
+>>> sample = [5, 4, 2, 8, 7, 6, 3, 0, 9, 1]
+>>> list(itertools.starmap(lambda a, b: b/a,
+... enumerate(itertools.accumulate(sample), 1))) # 6
+[5.0, 4.5, 3.6666666666666665, 4.75, 5.2, 5.333333333333333,
+5.0, 4.375, 4.888888888888889, 4.5]
+```
+
+1. Number the letters in the word, starting from 1.  
+2. Squares of integers from 0 to 10.  
+3. Multiplying numbers from two iterables in parallel: results stop when the shortest iterable ends.  
+4. This is what the zip built-in function does.  
+5. Repeat each letter in the word according to its place in it, starting from 1.  
+6. Running average.  
+
+Next, we have the group of merging generators—all of these yield items from multiple input iterables. chain and chain.from_iterable consume the input iterables sequentially (one after the other), while product, zip, and zip_longest consume the input iterables in parallel. See Table 14-3.  
+
+Table 14-3. Generator functions that merge multiple input iterables  
+| Module | Function | Description |
+| --- | --- | --- |
+| itertools | chain(it1, …, itN) | Yield all items from it1, then from it2 etc., seamlessly |
+| itertools | chain.from_iterable(it) | Yield all items from each iterable produced by it, one after the other, seamlessly; it should yield iterable items, for example, a list of iterables |
+| itertools | product(it1, …, itN, repeat=1) | Cartesian product: yields N-tuples made by combining items from each input iterable like nested for loops could produce; repeat allows the input iterables to be consumed more than once |
+| (built-in) | zip(it1, …, itN) | YieldsN-tuplesbuiltfromitemstaken fromtheiterablesin parallel,silently stopping when the first iterable is exhausted |
+| itertools | zip_longest(it1, …, itN, fillvalue=None) | Yields N-tuples built from items taken from the iterables in parallel, stopping only when the last iterable is exhausted, filling the blanks with the fillvalue |
+
+Example 14-17 shows the use of the itertools.chain and zip generator functions and their siblings. Recall that the zip function is named after the zip fastener or zipper (no relation with compression). Both zip and itertools.zip_longest were introduced in “The Awesome zip” on page 293.  
+
+Example 14-17. Merging generator function examples
+```
+>>> list(itertools.chain('ABC', range(2))) # 1
+['A', 'B', 'C', 0, 1]
+>>> list(itertools.chain(enumerate('ABC'))) # 2
+[(0, 'A'), (1, 'B'), (2, 'C')]
+>>> list(itertools.chain.from_iterable(enumerate('ABC'))) # 3
+[0, 'A', 1, 'B', 2, 'C']
+>>> list(zip('ABC', range(5))) # 4
+[('A', 0), ('B', 1), ('C', 2)]
+>>> list(zip('ABC', range(5), [10, 20, 30, 40])) # 5
+[('A', 0, 10), ('B', 1, 20), ('C', 2, 30)]
+>>> list(itertools.zip_longest('ABC', range(5))) # 6
+[('A', 0), ('B', 1), ('C', 2), (None, 3), (None, 4)]
+>>> list(itertools.zip_longest('ABC', range(5), fillvalue='?')) # 7
+[('A', 0), ('B', 1), ('C', 2), ('?', 3), ('?', 4)]
+```
+
+1. chain is usually called with two or more iterables.  
+2. chain does nothing useful when called with a single iterable.  
+3. But chain.from_iterable takes each item from the iterable, and chains them in sequence, as long as each item is itself iterable.  
+4. zip is commonly used to merge two iterables into a series of two-tuples.  
+5. Any number of iterables can be consumed by zip in parallel, but the generator stops as soon as the first iterable ends.  
+6. itertools.zip_longest works like zip, except it consumes all input iterables to the end, padding output tuples with None as needed.  
+7. The fillvalue keyword argument specifies a custom padding value.  
+
+The itertools.product generator is a lazy way of computing Cartesian products, which we built using list comprehensions with more than one for clause in “Cartesian Products” on page 23. Generator expressions with multiple for clauses can also be used to produce Cartesian products lazily. Example 14-18 demonstrates itertools.product.  
+
+Example 14-18. itertools.product generator function examples
+```
+>>> list(itertools.product('ABC', range(2))) # 1
+[('A', 0), ('A', 1), ('B', 0), ('B', 1), ('C', 0), ('C', 1)]
+>>> suits = 'spades hearts diamonds clubs'.split()
+>>> list(itertools.product('AK', suits)) # 2
+[('A', 'spades'), ('A', 'hearts'), ('A', 'diamonds'), ('A', 'clubs'),
+('K', 'spades'), ('K', 'hearts'), ('K', 'diamonds'), ('K', 'clubs')]
+>>> list(itertools.product('ABC')) # 3
+[('A',), ('B',), ('C',)]
+>>> list(itertools.product('ABC', repeat=2)) # 4
+[('A', 'A'), ('A', 'B'), ('A', 'C'), ('B', 'A'), ('B', 'B'),
+('B', 'C'), ('C', 'A'), ('C', 'B'), ('C', 'C')]
+>>> list(itertools.product(range(2), repeat=3))
+[(0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0),
+(1, 0, 1), (1, 1, 0), (1, 1, 1)]
+>>> rows = itertools.product('AB', range(2), repeat=2)
+>>> for row in rows: print(row)
+...
+('A', 0, 'A', 0)
+('A', 0, 'A', 1)
+('A', 0, 'B', 0)
+('A', 0, 'B', 1)
+('A', 1, 'A', 0)
+('A', 1, 'A', 1)
+('A', 1, 'B', 0)
+('A', 1, 'B', 1)
+('B', 0, 'A', 0)
+('B', 0, 'A', 1)
+('B', 0, 'B', 0)
+('B', 0, 'B', 1)
+('B', 1, 'A', 0)
+('B', 1, 'A', 1)
+('B', 1, 'B', 0)
+('B', 1, 'B', 1)
+```
+
+1. The Cartesian product of a str with three characters and a range with two integers yields six tuples (because 3 * 2 is 6).  
+2. The product of two card ranks ('AK'), and four suits is a series of eight tuples.
+3. Given a single iterable, product yields a series of one-tuples, not very useful.
+4. The repeat=N keyword argument tells product to consume each input iterable N times.  
+
+Some generator functions expand the input by yielding more than one value per input item. They are listed in Table 14-4.  
+
+Table 14-4. Generator functions that expand each input item into multiple output items
+| Module | Function | Description |
+| --- | --- | --- |
+| itertools | combinations(it, out_len) | Yield combinations of out_len items from the items yielded by it |
+| itertools | combinations_with_replacement(it, out_len) | Yield combinations of out_len items from the items yielded by it, including combinations with repeated items |
+| itertools | count(start=0, step=1) | Yields numbers starting at start, incremented by step, indefinitely |
+| itertools | cycle(it) | Yields items from it storing a copy of each, then yields the entire
+sequence repeatedly, indefinitely |
+| itertools | permutations(it, out_len=None) | Yield permutations of out_len items from the items yielded by it; by default, out_len is len(list(it)) |
+| itertools | repeat(item, [times]) | Yield the given item repeadedly, indefinetly unless a number of times is given |
+
+The count and repeat functions from itertools return generators that conjure items out of nothing: neither of them takes an iterable as input. We saw itertools.count in “Arithmetic Progression with itertools” on page 423. The cycle generator makes a backup of the input iterable and yields its items repeatedly. Example 14-19 illustrates the use of count, repeat, and cycle.  
+
+Example 14-19. count, cycle, and repeat  
+```
+>>> ct = itertools.count() # 1
+>>> next(ct) # 2
+0
+>>> next(ct), next(ct), next(ct) # 3
+(1, 2, 3)
+>>> list(itertools.islice(itertools.count(1, .3), 3)) # 4
+[1, 1.3, 1.6]
+>>> cy = itertools.cycle('ABC') # 5
+>>> next(cy)
+'A'
+>>> list(itertools.islice(cy, 7)) # 6
+['B', 'C', 'A', 'B', 'C', 'A', 'B']
+>>> rp = itertools.repeat(7) # 7
+>>> next(rp), next(rp)
+(7, 7)
+>>> list(itertools.repeat(8, 4)) # 8
+[8, 8, 8, 8]
+>>> list(map(operator.mul, range(11), itertools.repeat(5))) # 9
+[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+```
+
+1. Build a count generator ct.
+2. Retrieve the first item from ct.
+3. I can’t build a list from ct, because ct never stops, so I fetch the next three items.
+4. I can build a list from a count generator if it is limited by islice or takewhile.
+5. Build a cycle generator from 'ABC' and fetch its first item, 'A'.
+6. A list can only be built if limited by islice; the next seven items are retrieved here.
+7. Build a repeat generator that will yield the number 7 forever.
+8. A repeat generator can be limited by passing the times argument: here the number 8 will be produced 4 times.  
+9. A common use of repeat: providing a fixed argument in map; here it provides the 5 multiplier.
+
+The combinations, combinations_with_replacement, and permutations generator functions—together with product—are called the combinatoric generators in the itertools documentation page. There is a close relationship between itertools.product and the remaining combinatoric functions as well, as Example 14-20 shows.  
+
+Example 14-20. Combinatoric generator functions yield multiple values per input item  
+```
+>>> list(itertools.combinations('ABC', 2)) # 1
+[('A', 'B'), ('A', 'C'), ('B', 'C')]
+>>> list(itertools.combinations_with_replacement('ABC', 2)) # 2
+[('A', 'A'), ('A', 'B'), ('A', 'C'), ('B', 'B'), ('B', 'C'), ('C', 'C')]
+>>> list(itertools.permutations('ABC', 2)) # 3
+[('A', 'B'), ('A', 'C'), ('B', 'A'), ('B', 'C'), ('C', 'A'), ('C', 'B')]
+>>> list(itertools.product('ABC', repeat=2)) # 4
+[('A', 'A'), ('A', 'B'), ('A', 'C'), ('B', 'A'), ('B', 'B'), ('B', 'C'),
+('C', 'A'), ('C', 'B'), ('C', 'C')]
+```
+
+1. All combinations of len()==2 from the items in 'ABC'; item ordering in the generated tuples is irrelevant (they could be sets).  
+2. All combinations of len()==2 from the items in 'ABC', including combinations with repeated items.
+3. All permutations of len()==2 from the items in 'ABC'; item ordering in the generated tuples is relevant.  
+4. Cartesian product from 'ABC' and 'ABC' (that’s the effect of repeat=2).
+
+The last group of generator functions we’ll cover in this section are designed to yield all items in the input iterables, but rearranged in some way. Here are two functions that return multiple generators: itertools.groupby and itertools.tee. The other generator function in this group, the reversed built-in, is the only one covered in this section that does not accept any iterable as input, but only sequences. This makes sense: because reversed will yield the items from last to first, it only works with a sequence with a known length. But it avoids the cost of making a reversed copy of the sequence by yielding each item as needed. I put the itertools.product function together with the merging generators in Table 14-3 because they all consume more than one iterable, while the generators in Table 14-5 all accept at most one input iterable.  
+
+Table 14-5. Rearranging generator functions
+| Module | Function | Description |
+| --- | --- | --- |
+| itertools | groupby(it, key=None) | Yields 2-tuples of the form (key, group), where key is the grouping criterion and group is a generator yielding the items in the group |
+| (built-in) | reversed(seq) | Yields items from seq in reverse order, from last to first; seq must be a sequence or implement the __reversed__ special method |
+| itertools | tee(it, n=2) | Yields a tuple of ngenerators, each yielding the items of the input iterable independently |
+
+Example 14-21 demonstrates the use of itertools.groupby and the reversed built-in. Note that itertools.groupby assumes that the input iterable is sorted by the grouping criterion, or at least that the items are clustered by that criterion—even if not sorted.  
+
+Example 14-21. itertools.groupby
+```
+>>> list(itertools.groupby('LLLLAAGGG')) # 1
+[('L', <itertools._grouper object at 0x102227cc0>),
+('A', <itertools._grouper object at 0x102227b38>),
+('G', <itertools._grouper object at 0x102227b70>)]
+>>> for char, group in itertools.groupby('LLLLAAAGG'): # 2
+... print(char, '->', list(group))
+...
+L -> ['L', 'L', 'L', 'L']
+A -> ['A', 'A',]
+G -> ['G', 'G', 'G']
+>>> animals = ['duck', 'eagle', 'rat', 'giraffe', 'bear',
+... 'bat', 'dolphin', 'shark', 'lion']
+>>> animals.sort(key=len) # 3
+>>> animals
+['rat', 'bat', 'duck', 'bear', 'lion', 'eagle', 'shark',
+'giraffe', 'dolphin']
+>>> for length, group in itertools.groupby(animals, len): # 4
+... print(length, '->', list(group))
+...
+3 -> ['rat', 'bat']
+4 -> ['duck', 'bear', 'lion']
+5 -> ['eagle', 'shark']
+7 -> ['giraffe', 'dolphin']
+>>> for length, group in itertools.groupby(reversed(animals), len): # 5
+... print(length, '->', list(group))
+...
+7 -> ['dolphin', 'giraffe']
+5 -> ['shark', 'eagle']
+4 -> ['lion', 'bear', 'duck']
+3 -> ['bat', 'rat']
+>>>
+```
+
+1. groupby yields tuples of (key, group_generator).  
+2. Handling groupby generators involves nested iteration: in this case, the outer for loop and the inner list constructor.  
+3. To use groupby, the input should be sorted; here the words are sorted by length.
+4. Again, loop overthe key and group pair, to display the key and expand the group into a list.
+5. Here the reverse generator is used to iterate over animals from right to left.  
+
+The last of the generator functions in this group is iterator.tee, which has a unique behavior: it yields multiple generators from a single input iterable, each yielding every item from the input. Those generators can be consumed independently, as shown in Example 14-22.  
+
+Example 14-22. itertools.tee yields multiple generators, each yielding every item of the input generator
+```
+>>> list(itertools.tee('ABC'))
+[<itertools._tee object at 0x10222abc8>, <itertools._tee object at 0x10222ac08>]
+>>> g1, g2 = itertools.tee('ABC')
+>>> next(g1)
+'A'
+>>> next(g2)
+'A'
+>>> next(g2)
+'B'
+>>> list(g1)
+['B', 'C']
+>>> list(g2)
+['C']
+>>> list(zip(*itertools.tee('ABC')))
+[('A', 'A'), ('B', 'B'), ('C', 'C')]
+```
+
+Note that several examples in this section used combinations of generator functions. This is a great feature of these functions: because they all take generators as arguments and return generators, they can be combined in many different ways.  
+
+While on the subject of combining generators, the yield from statement, new in Python 3.3, is a tool for doing just that.
