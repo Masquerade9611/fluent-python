@@ -994,16 +994,18 @@ Table 14-1. Filtering generator functions
 
 | 模块 | 方法 | 描述 |
 | --- | --- | --- |
-| itertools | compress(it, selector_it) | 并行使用两个可迭代对象; yields items from it whenever the corresponding item in selector_it is truthy |
-| itertools | dropwhile(predicate, it) | Consumes it skipping items while predicate computes truthy, then yields every remaining item (no further checks are made) |
-| (built-in) | filter(predicate,it) | Applies predicate to each item of iterable, yielding the item if predicate(item) is truthy; if predicate is None, only truthy items are yielded |
-| itertools | filterfalse(predicate, it) | Same as filter, with the predicate logic negated: yields items whenever predicate computes falsy |
-| itertools | islice(it, stop) or islice(it, start, stop, step=1) | Yields items from a slice of it, similar to s[:stop] or s[start:stop:step] except it can be any iterable, and the operation is lazy |
-| itertools | takewhile(predicate, it) | Yields items while predicate computes truthy, then stops and no further checks are made |
+| itertools | compress(it, selector_it) | 并行使用两个可迭代对象; 每当selector_it中的响应项为真的时候，就从it中产出项 |
+| itertools | dropwhile(predicate, it) | 当predicate计算为真时消耗it跳过项，然后产出所有剩余的项（不进行进一步的检查） |
+| (built-in) | filter(predicate,it) | 将predicate应用于iterable的每一项，如果predicate(item)为真就产出这个item；如果predicate为None，只有真的items会被产出 |
+| itertools | filterfalse(predicate, it) | 类似于filter，predicate逻辑相反：每当predicate计算为假时产出项 |
+| itertools | islice(it, stop) or islice(it, start, stop, step=1) | 从it的切片产出项，类似于s[:stop]或s[start:stop:step]，除了他可以是任何可迭代对象，并且操作是惰性的 |
+| itertools | takewhile(predicate, it) | 当predicate计算为真时产出项，然后终止，不进行进一步检查 |
 
 The console listing in Example 14-14 shows the use of all functions in Table 14-1.  
+    例14-14的控制台列表展示了表14-1中所有函数的用法。
 
 Example 14-14. Filtering generator functions examples  
+    例14-14. 筛选生成器函数示例
 ```
 >>> def vowel(c):
 ... return c.lower() in 'aeiou'
@@ -1028,20 +1030,33 @@ Example 14-14. Filtering generator functions examples
 ```
 
 The next group are the mapping generators: they yield items computed from each individual item in the input iterable—or iterables, in the case of map and starmap.[11] The generators in Table 14-2 yield one result per item in the input iterables. If the input comes from more than one iterable, the output stops as soon as the first input iterable is exhausted.  
+    下一组是mapping生成器：他们产出从输入的一个或多个iterable中的每个独立item计算得出的项（在map与starmap的情况下）。表14-2的生成器在输入的iterables中每个item就产出一个结果。如果输入来自多个iterables，那一旦首个输入的iterable为空，就结束输出。
 
 [11]. Here the term “mapping” is unrelated to dictionaries, but has to do with the map built-in
+    这里的术语“mapping”与字典无关，而是与内建的map有关
 
 Table 14-2. Mapping generator functions
+    表14-2. Mapping生成器函数
+
 | Module | Function | Description |
 | --- | --- | --- |
-| itertools | accumulate(it, [func]) | Yieldsaccumulatedsums; if func isprovided,yields theresultofapplyingit tothe first pair of items, then to the first result and next item, etc. |
+| itertools | accumulate(it, [func]) | Yields accumulated sums; if func is provided, yields the result of applying it to the first pair of items, then to the first result and next item, etc. |
 | (built-in) | enumerate(iterable, start=0) | Yields 2-tuples of the form (index, item), where index is counted from start, and item is taken from the iterable |
-| (built-in) | map(func, it1, [it2, …, itN]) | Applies func toeach itemof it,yieldingtheresult; if N iterablesaregiven, func must take N arguments and the iterables will be consumed in parallel |
-| itertools | starmap(func, it)  | Applies func toeach itemof it,yieldingtheresult; theinput iterableshouldyield iterable items iit, and func is applied as func(*iit) |
+| (built-in) | map(func, it1, [it2, …, itN]) | Applies func to each item of it, yielding the result; if N iterables are given, func must take N arguments and the iterables will be consumed in parallel |
+| itertools | starmap(func, it)  | Applies func to each item of it, yielding the result; the input iterable should yield iterable items iit, and func is applied as func(*iit) |
+
+| 模块 | 方法 | 描述 |
+| --- | --- | --- |
+| itertools | accumulate(it, [func]) | 产出累计的总和；如果提供了func，产出将it应用于第一对item的结果，然后应用于第一个结果与下一个item，以此类推。 |
+| (built-in) | enumerate(iterable, start=0) | 产出2元组(index, item)，index从start计算而来，而item取自iterable |
+| (built-in) | map(func, it1, [it2, …, itN]) | 将func应用于it的每项，产出结果；如果传入了N个iterable，func必须接收N个参数然后iterable将被并行地消费 |
+| itertools | starmap(func, it)  | 将func应用于it的每项，产出结果；输入的iterable应该产出可迭代的项iit，然后func被应用作func(*iit) |
 
 Example 14-15 demonstrates some uses of itertools.accumulate.  
+    例14-15演示了itertools.accumulate的部分用法
 
 Example 14-15. itertools.accumulate generator function examples  
+    例14-15. itertools.accumulate生成器示例
 ```
 >>> sample = [5, 4, 2, 8, 7, 6, 3, 0, 9, 1]
 >>> import itertools
@@ -1058,15 +1073,22 @@ Example 14-15. itertools.accumulate generator function examples
 [1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800] # 5
 ```
 
-1. Running sum.
-2. Running minimum.
-3. Running maximum.
-4. Running product.
-5. Factorials from 1! to 10!.
+1. Running sum.  
+    运行总和。
+2. Running minimum.  
+    运行最小值。
+3. Running maximum.  
+    运行最大值。
+4. Running product.  
+    运行乘积。
+5. Factorials from 1! to 10!.  
+    从1!到10!的阶乘。
 
 The remaining functions of Table 14-2 are shown in Example 14-16.  
+    例14-16展示了表14-2中剩余的函数。
 
 Example 14-16. Mapping generator function examples  
+    例14-16. mapping生成器函数示例
 ```
 >>> list(enumerate('albatroz', 1)) # 1
 [(1, 'a'), (2, 'l'), (3, 'b'), (4, 'a'), (5, 't'), (6, 'r'), (7, 'o'), (8, 'z')]
