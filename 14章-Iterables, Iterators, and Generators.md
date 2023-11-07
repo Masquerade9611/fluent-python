@@ -1110,26 +1110,44 @@ Example 14-16. Mapping generator function examples
 ```
 
 1. Number the letters in the word, starting from 1.  
+    从1开始给单词中的字母编号。
 2. Squares of integers from 0 to 10.  
+    从0到10整数的平方。
 3. Multiplying numbers from two iterables in parallel: results stop when the shortest iterable ends.  
+    从两个iterable并行地计算乘数：当最短的iterable结束时结果停止。
 4. This is what the zip built-in function does.  
+    这就是内建zip函数所做的工作。
 5. Repeat each letter in the word according to its place in it, starting from 1.  
+    从1开始，根据单词中每个字母的位置进行重复。
 6. Running average.  
+    取平均数。
 
 Next, we have the group of merging generators—all of these yield items from multiple input iterables. chain and chain.from_iterable consume the input iterables sequentially (one after the other), while product, zip, and zip_longest consume the input iterables in parallel. See Table 14-3.  
+    接下来，我们有一组merging生成器——这些都会通过多个输入iterable来产出项。chain与chain.from_iterable顺序地消费输入iterable（一个接一个地），而product，zip与zip_longest并行地消费输入iterable。如表14-3所示。
 
 Table 14-3. Generator functions that merge multiple input iterables  
+    表14-3. 合并多个输入iterable的生成器函数
 | Module | Function | Description |
 | --- | --- | --- |
 | itertools | chain(it1, …, itN) | Yield all items from it1, then from it2 etc., seamlessly |
 | itertools | chain.from_iterable(it) | Yield all items from each iterable produced by it, one after the other, seamlessly; it should yield iterable items, for example, a list of iterables |
 | itertools | product(it1, …, itN, repeat=1) | Cartesian product: yields N-tuples made by combining items from each input iterable like nested for loops could produce; repeat allows the input iterables to be consumed more than once |
-| (built-in) | zip(it1, …, itN) | YieldsN-tuplesbuiltfromitemstaken fromtheiterablesin parallel,silently stopping when the first iterable is exhausted |
+| (built-in) | zip(it1, …, itN) | Yields N-tuples built from items taken from the iterables in parallel,silently stopping when the first iterable is exhausted |
 | itertools | zip_longest(it1, …, itN, fillvalue=None) | Yields N-tuples built from items taken from the iterables in parallel, stopping only when the last iterable is exhausted, filling the blanks with the fillvalue |
 
-Example 14-17 shows the use of the itertools.chain and zip generator functions and their siblings. Recall that the zip function is named after the zip fastener or zipper (no relation with compression). Both zip and itertools.zip_longest were introduced in “The Awesome zip” on page 293.  
+| 模块 | 方法 | 描述 |
+| --- | --- | --- |
+| itertools | chain(it1, …, itN) | Yield all items from it1, then from it2 etc., seamlessly无缝地从it1产出所有项，接着从it2，…等等 |
+| itertools | chain.from_iterable(it) | 从it生成的每个iterable无缝且一个接一个地产出所有项；it应该产出可迭代的项，如一个列表的iterable |
+| itertools | product(it1, …, itN, repeat=1) | 笛卡尔积：产出通过组合每个输入iterable的item所构成的N维元组，就像嵌套for循环可以生成的那样；重复允许输入iterable被多次使用 |
+| (built-in) | zip(it1, …, itN) | 产出N维元组，通过从iterable并行取出的项所构建，当首个iterable被耗尽后会安静终止 |
+| itertools | zip_longest(it1, …, itN, fillvalue=None) | 产出N维元组，通过从iterable并行取出的项所构建，只有当最后的iterable耗尽时才结束，用fillvalue来填充空白部分 |
 
-Example 14-17. Merging generator function examples
+Example 14-17 shows the use of the itertools.chain and zip generator functions and their siblings. Recall that the zip function is named after the zip fastener or zipper (no relation with compression). Both zip and itertools.zip_longest were introduced in “The Awesome zip” on page 293.  
+    例14-17展示了itertool.chain与zip生成器函数及其兄弟函数的使用。回想一下，zip函数以纽扣或拉链命名（与压缩无关）。zip与itertools.zip_longest都在293页的"The Awesome zip"所介绍过。
+
+Example 14-17. Merging generator function examples  
+    例14-17. merging生成器函数示例
 ```
 >>> list(itertools.chain('ABC', range(2))) # 1
 ['A', 'B', 'C', 0, 1]
