@@ -1166,16 +1166,25 @@ Example 14-17. Merging generator function examples
 ```
 
 1. chain is usually called with two or more iterables.  
+    chain通常用两个或以上的iterable来调用。
 2. chain does nothing useful when called with a single iterable.  
+    当用一个iterable调用时，chain不会起什么作用。
 3. But chain.from_iterable takes each item from the iterable, and chains them in sequence, as long as each item is itself iterable.  
+    但chain.from_iterable会从iterable从获取每一项，然后顺序地连接他们，只要每项本身都是可迭代的。
 4. zip is commonly used to merge two iterables into a series of two-tuples.  
+    zip通常被用于将两个iterable合并为一系列二元组。
 5. Any number of iterables can be consumed by zip in parallel, but the generator stops as soon as the first iterable ends.  
+    iterable的任何数字都可以被并发地消费，但一旦首个iterable结束则生成器立刻终止。
 6. itertools.zip_longest works like zip, except it consumes all input iterables to the end, padding output tuples with None as needed.  
+    itertools.zip_longest和zip类似，除了他会将所有输入的iterable都消费完才结束，其中根据需要用None填充元组。
 7. The fillvalue keyword argument specifies a custom padding value.  
+    参数fillvalue指定一个通用的填充值。
 
 The itertools.product generator is a lazy way of computing Cartesian products, which we built using list comprehensions with more than one for clause in “Cartesian Products” on page 23. Generator expressions with multiple for clauses can also be used to produce Cartesian products lazily. Example 14-18 demonstrates itertools.product.  
+    itertools.product生成器是一种计算笛卡尔积的懒惰方式，我们使用23页的"Cartesian Products"中的多个for语句的列表推导式来构建他。拥有多for语句的生成器表达式也可以被用于延迟生产笛卡尔积。例14-18演示了itertools.product。
 
-Example 14-18. itertools.product generator function examples
+Example 14-18. itertools.product generator function examples  
+    例14-18. itertools.product生成器函数示例
 ```
 >>> list(itertools.product('ABC', range(2))) # 1
 [('A', 0), ('A', 1), ('B', 0), ('B', 1), ('C', 0), ('C', 1)]
@@ -1213,6 +1222,7 @@ Example 14-18. itertools.product generator function examples
 ```
 
 1. The Cartesian product of a str with three characters and a range with two integers yields six tuples (because 3 * 2 is 6).  
+    
 2. The product of two card ranks ('AK'), and four suits is a series of eight tuples.
 3. Given a single iterable, product yields a series of one-tuples, not very useful.
 4. The repeat=N keyword argument tells product to consume each input iterable N times.  
