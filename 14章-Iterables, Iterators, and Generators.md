@@ -1222,14 +1222,19 @@ Example 14-18. itertools.product generator function examples
 ```
 
 1. The Cartesian product of a str with three characters and a range with two integers yields six tuples (because 3 * 2 is 6).  
-    
-2. The product of two card ranks ('AK'), and four suits is a series of eight tuples.
-3. Given a single iterable, product yields a series of one-tuples, not very useful.
+    由3个字符组成的字符串与2个整数range的笛卡尔积产出6个元组（由于3 × 2为6）
+2. The product of two card ranks ('AK'), and four suits is a series of eight tuples.  
+    AK两个牌阶及四种花色的积是一系列八个元组
+3. Given a single iterable, product yields a series of one-tuples, not very useful.  
+    传入一个单独的iterable，乘积产出一系列单元组，这不是很有用。
 4. The repeat=N keyword argument tells product to consume each input iterable N times.  
+    repeat=N关键词参数使得乘积去对每个输入的iterable消费N次。
 
 Some generator functions expand the input by yielding more than one value per input item. They are listed in Table 14-4.  
+    一些生成器函数通过为每个输入项产出大于一个的值，来扩展输入。表14-4列出了这些。
 
-Table 14-4. Generator functions that expand each input item into multiple output items
+Table 14-4. Generator functions that expand each input item into multiple output items  
+    表14-4. 将每个输入项
 | Module | Function | Description |
 | --- | --- | --- |
 | itertools | combinations(it, out_len) | Yield combinations of out_len items from the items yielded by it |
@@ -1240,7 +1245,18 @@ sequence repeatedly, indefinitely |
 | itertools | permutations(it, out_len=None) | Yield permutations of out_len items from the items yielded by it; by default, out_len is len(list(it)) |
 | itertools | repeat(item, [times]) | Yield the given item repeadedly, indefinetly unless a number of times is given |
 
+| 模块 | 方法 | 描述 |
+| --- | --- | --- |
+| itertools | combinations(it, out_len) | 从it产出的项中产出out_len项的结合 |
+| itertools | combinations_with_replacement(it, out_len) | 从it产出项中产出out_len项的结合，包含重复项的结合 |
+| itertools | count(start=0, step=1) | 产出数字，从start开始，以step无限递增 |
+| itertools | cycle(it) | Yields items from it storing a copy of each, then yields the entire
+sequence repeatedly, indefinitely 从it中产出项并存储每项的副本，然后无限地重复产出整个序列 |
+| itertools | permutations(it, out_len=None) | 从it产出项中产出out_len项的排列；默认情况下，out_len是len(list(it)) |
+| itertools | repeat(item, [times]) | 无限重复产出给定的item，除非传入了times数字 |
+
 The count and repeat functions from itertools return generators that conjure items out of nothing: neither of them takes an iterable as input. We saw itertools.count in “Arithmetic Progression with itertools” on page 423. The cycle generator makes a backup of the input iterable and yields its items repeatedly. Example 14-19 illustrates the use of count, repeat, and cycle.  
+    itertools中的count与repeat方法都返回生成器，这些生成器无中生有地生成项：这两种方法都没有接收iterable作为输入。我们在423页的“Arithmic Progression with itertools”中看到itertools.count。cycle生成器制作了输入iterable的备份并重复产出他的项。例14-19阐明了count, repeat与cycle的使用
 
 Example 14-19. count, cycle, and repeat  
 ```
@@ -1265,15 +1281,24 @@ Example 14-19. count, cycle, and repeat
 [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
 ```
 
-1. Build a count generator ct.
-2. Retrieve the first item from ct.
-3. I can’t build a list from ct, because ct never stops, so I fetch the next three items.
-4. I can build a list from a count generator if it is limited by islice or takewhile.
-5. Build a cycle generator from 'ABC' and fetch its first item, 'A'.
-6. A list can only be built if limited by islice; the next seven items are retrieved here.
-7. Build a repeat generator that will yield the number 7 forever.
+1. Build a count generator ct.  
+    构建一个count生成器ct。
+2. Retrieve the first item from ct.  
+    检索ct的首项。
+3. I can’t build a list from ct, because ct never stops, so I fetch the next three items.  
+    我没有从ct构建一个列表，因为ct永不停止，所以我取了接下来的三项。
+4. I can build a list from a count generator if it is limited by islice or takewhile.  
+    如果它受islice或takewhile的限制，我可以从count生成器构建一个列表。
+5. Build a cycle generator from 'ABC' and fetch its first item, 'A'.  
+    用'ABC'构建一个cycle生成器，检索首项'A'。
+6. A list can only be built if limited by islice; the next seven items are retrieved here.  
+    只有在受islice限制时才可以构建列表；这里检索了后7项。
+7. Build a repeat generator that will yield the number 7 forever.  
+    构建一个repeat生成器，他用U按值会产出数字7。
 8. A repeat generator can be limited by passing the times argument: here the number 8 will be produced 4 times.  
-9. A common use of repeat: providing a fixed argument in map; here it provides the 5 multiplier.
+    repeat生成器可以被传入的times参数限制：这里的数字8将被生产4次。
+9. A common use of repeat: providing a fixed argument in map; here it provides the 5 multiplier.  
+    repeat的一种通常用法：在map中提供固定的参数；这里他提供了5乘数。
 
 The combinations, combinations_with_replacement, and permutations generator functions—together with product—are called the combinatoric generators in the itertools documentation page. There is a close relationship between itertools.product and the remaining combinatoric functions as well, as Example 14-20 shows.  
 
