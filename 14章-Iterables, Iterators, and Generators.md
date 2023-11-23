@@ -1298,11 +1298,13 @@ Example 14-19. count, cycle, and repeat
 8. A repeat generator can be limited by passing the times argument: here the number 8 will be produced 4 times.  
     repeat生成器可以被传入的times参数限制：这里的数字8将被生产4次。
 9. A common use of repeat: providing a fixed argument in map; here it provides the 5 multiplier.  
-    repeat的一种通常用法：在map中提供固定的参数；这里他提供了5乘数。
+    repeat的一种通常用法：在map中提供固定的参数；这里他提供了5的乘数。
 
 The combinations, combinations_with_replacement, and permutations generator functions—together with product—are called the combinatoric generators in the itertools documentation page. There is a close relationship between itertools.product and the remaining combinatoric functions as well, as Example 14-20 shows.  
+    combinations，combinations_with_replacement与permutations生成器函数（连同生成的）这些在itertools文档页中都被称作组合生成器。itertools.product与其余的组合生成器也有着亲密的关系，如例14-20所示。
 
 Example 14-20. Combinatoric generator functions yield multiple values per input item  
+    例14-20. 每个输入项产出多值的组合生成器函数
 ```
 >>> list(itertools.combinations('ABC', 2)) # 1
 [('A', 'B'), ('A', 'C'), ('B', 'C')]
@@ -1316,14 +1318,26 @@ Example 14-20. Combinatoric generator functions yield multiple values per input 
 ```
 
 1. All combinations of len()==2 from the items in 'ABC'; item ordering in the generated tuples is irrelevant (they could be sets).  
-2. All combinations of len()==2 from the items in 'ABC', including combinations with repeated items.
+    项'ABC'中所有长度为2的组合；生成元组中项的顺序无关（这些可以是集合）。
+2. All combinations of len()==2 from the items in 'ABC', including combinations with repeated items.  
+    项'ABC'中所有长度为2的组合；包括重复项的组合。
 3. All permutations of len()==2 from the items in 'ABC'; item ordering in the generated tuples is relevant.  
-4. Cartesian product from 'ABC' and 'ABC' (that’s the effect of repeat=2).
+    项'ABC'中所有长度为2的组合；生成元组中项顺序是相关的。
+4. Cartesian product from 'ABC' and 'ABC' (that’s the effect of repeat=2).  
+    'ABC'与'ABC'的笛卡尔积（repeat=2所导致）。
 
 The last group of generator functions we’ll cover in this section are designed to yield all items in the input iterables, but rearranged in some way. Here are two functions that return multiple generators: itertools.groupby and itertools.tee. The other generator function in this group, the reversed built-in, is the only one covered in this section that does not accept any iterable as input, but only sequences. This makes sense: because reversed will yield the items from last to first, it only works with a sequence with a known length. But it avoids the cost of making a reversed copy of the sequence by yielding each item as needed. I put the itertools.product function together with the merging generators in Table 14-3 because they all consume more than one iterable, while the generators in Table 14-5 all accept at most one input iterable.  
+    我们本节介绍的最后一组生成器函数旨在产出输入iterables的所有项，但以某种方式重新排列。这里是两个返回多生成器的方法：itertools.groupby与itertools.tee。本组另一个生成器函数（反向内置的）是本节唯一一个不接受任何iterable作为参数，只接受序列的函数。这是合理的：因为反向将从后向前产出项，只能用已知长度的序列。但他通过按需产出每一项来抵消为序列制作反向拷贝的代价。我将itertools.product函数与表14-3中的合并生成器放在一起，是因为他们都消费大于一个的iterable，而表14-5的生成器都最多接收一个iterable作为输入。
 
 Table 14-5. Rearranging generator functions
+    表14-5.重新排列生成器函数
 | Module | Function | Description |
+| --- | --- | --- |
+| itertools | groupby(it, key=None) | Yields 2-tuples of the form (key, group), where key is the grouping criterion and group is a generator yielding the items in the group |
+| (built-in) | reversed(seq) | Yields items from seq in reverse order, from last to first; seq must be a sequence or implement the __reversed__ special method |
+| itertools | tee(it, n=2) | Yields a tuple of ngenerators, each yielding the items of the input iterable independently |
+
+| 模块 | 方法 | 描述 |
 | --- | --- | --- |
 | itertools | groupby(it, key=None) | Yields 2-tuples of the form (key, group), where key is the grouping criterion and group is a generator yielding the items in the group |
 | (built-in) | reversed(seq) | Yields items from seq in reverse order, from last to first; seq must be a sequence or implement the __reversed__ special method |
