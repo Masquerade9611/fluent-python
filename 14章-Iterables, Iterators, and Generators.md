@@ -1327,7 +1327,7 @@ Example 14-20. Combinatoric generator functions yield multiple values per input 
     'ABC'与'ABC'的笛卡尔积（repeat=2所导致）。
 
 The last group of generator functions we’ll cover in this section are designed to yield all items in the input iterables, but rearranged in some way. Here are two functions that return multiple generators: itertools.groupby and itertools.tee. The other generator function in this group, the reversed built-in, is the only one covered in this section that does not accept any iterable as input, but only sequences. This makes sense: because reversed will yield the items from last to first, it only works with a sequence with a known length. But it avoids the cost of making a reversed copy of the sequence by yielding each item as needed. I put the itertools.product function together with the merging generators in Table 14-3 because they all consume more than one iterable, while the generators in Table 14-5 all accept at most one input iterable.  
-    我们本节介绍的最后一组生成器函数旨在产出输入iterables的所有项，但以某种方式重新排列。这里是两个返回多生成器的方法：itertools.groupby与itertools.tee。本组另一个生成器函数（反向内置的）是本节唯一一个不接受任何iterable作为参数，只接受序列的函数。这是合理的：因为反向将从后向前产出项，只能用已知长度的序列。但他通过按需产出每一项来抵消为序列制作反向拷贝的代价。我将itertools.product函数与表14-3中的合并生成器放在一起，是因为他们都消费大于一个的iterable，而表14-5的生成器都最多接收一个iterable作为输入。
+    我们本节介绍的最后一组生成器函数旨在产出输入iterables的所有项，但以某种方式重新排列。这里是两个返回多生成器的方法：itertools.groupby与itertools.tee。本组另一个生成器函数（内置的reversed）是本节唯一一个不接受任何iterable作为参数，只接受序列的函数。这是合理的：因为反向将从后向前产出项，只能用已知长度的序列。但他通过按需产出每一项来抵消为序列制作反向拷贝的代价。我将itertools.product函数与表14-3中的合并生成器放在一起，是因为他们都消费大于一个的iterable，而表14-5的生成器都最多接收一个iterable作为输入。
 
 Table 14-5. Rearranging generator functions
     表14-5.重新排列生成器函数
@@ -1339,13 +1339,15 @@ Table 14-5. Rearranging generator functions
 
 | 模块 | 方法 | 描述 |
 | --- | --- | --- |
-| itertools | groupby(it, key=None) | Yields 2-tuples of the form (key, group), where key is the grouping criterion and group is a generator yielding the items in the group |
-| (built-in) | reversed(seq) | Yields items from seq in reverse order, from last to first; seq must be a sequence or implement the __reversed__ special method |
-| itertools | tee(it, n=2) | Yields a tuple of ngenerators, each yielding the items of the input iterable independently |
+| itertools | groupby(it, key=None) | 产出(key, group)形式的二元组，key是分组标准，而group是产出组中项目的生成器 |
+| (built-in) | reversed(seq) | 以反向顺序从seq产出项，从最后向开头；seq必须是一个序列或实现了__reversed__魔术方法的 |
+| itertools | tee(it, n=2) | Yields a tuple of n generators, each yielding the items of the input iterable independently产出一个n生成器的元组，每个生成器独立产出输入iterable的项 |
 
 Example 14-21 demonstrates the use of itertools.groupby and the reversed built-in. Note that itertools.groupby assumes that the input iterable is sorted by the grouping criterion, or at least that the items are clustered by that criterion—even if not sorted.  
+    例14-21演示了itertools.groupby与内建reversed的使用。注意，itertools.groupby假定了输入iterable按分组标准进行排了序，或者至少项是通过那个标准聚集在一起（即使没有排序）。
 
-Example 14-21. itertools.groupby
+Example 14-21. itertools.groupby  
+
 ```
 >>> list(itertools.groupby('LLLLAAGGG')) # 1
 [('L', <itertools._grouper object at 0x102227cc0>),
@@ -1381,10 +1383,15 @@ G -> ['G', 'G', 'G']
 ```
 
 1. groupby yields tuples of (key, group_generator).  
+    groupby产出(key, group_generator)这样的元组。
 2. Handling groupby generators involves nested iteration: in this case, the outer for loop and the inner list constructor.  
-3. To use groupby, the input should be sorted; here the words are sorted by length.
-4. Again, loop overthe key and group pair, to display the key and expand the group into a list.
+    处理groupby生成器涉及嵌套的迭代：本例中，是外层for循环与内层列表构造函数。
+3. To use groupby, the input should be sorted; here the words are sorted by length.  
+    为了利用groupby，输入应该是排序的；这里的单词按长度排序。
+4. Again, loop over the key and group pair, to display the key and expand the group into a list.  
+    再一次，遍历key与对应的词组，显示key并将组展开为列表。
 5. Here the reverse generator is used to iterate over animals from right to left.  
+    这里是反转生成器用于从右向左迭代动物。
 
 The last of the generator functions in this group is iterator.tee, which has a unique behavior: it yields multiple generators from a single input iterable, each yielding every item from the input. Those generators can be consumed independently, as shown in Example 14-22.  
 
