@@ -1394,8 +1394,11 @@ G -> ['G', 'G', 'G']
     这里是反转生成器用于从右向左迭代动物。
 
 The last of the generator functions in this group is iterator.tee, which has a unique behavior: it yields multiple generators from a single input iterable, each yielding every item from the input. Those generators can be consumed independently, as shown in Example 14-22.  
+    本组最后的生成器函数是iterator.tee，他有一种独特的行为：从单个输入iterable中产出多个生成器，每个生成器从输入产出每项。这些生成器可以被独立消费，像例14-22中展示的一样。
 
-Example 14-22. itertools.tee yields multiple generators, each yielding every item of the input generator
+Example 14-22. itertools.tee yields multiple generators, each yielding every item of the input generator  
+    例14-22. itertools.tee产出多生成器，每个生成器产出输入生成器的每一项。
+
 ```
 >>> list(itertools.tee('ABC'))
 [<itertools._tee object at 0x10222abc8>, <itertools._tee object at 0x10222ac08>]
@@ -1415,5 +1418,7 @@ Example 14-22. itertools.tee yields multiple generators, each yielding every ite
 ```
 
 Note that several examples in this section used combinations of generator functions. This is a great feature of these functions: because they all take generators as arguments and return generators, they can be combined in many different ways.  
+    注意，本节的几个示例使用了生成器函数的结合。这是这些函数中很棒的特点：因为他们都是接收生成器作参数，并返回生成器，他们可以用许多不同的方式结合。
 
-While on the subject of combining generators, the yield from statement, new in Python 3.3, is a tool for doing just that.
+While on the subject of combining generators, the yield from statement, new in Python 3.3, is a tool for doing just that.  
+    当讨论结合生成器的主体时，Python3.3新增的yield from语法就是为了实现这一点的工具。
